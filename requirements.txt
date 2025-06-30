@@ -9,3 +9,4 @@ dependency_injector==4.45.0
 sqladmin==0.20.1
 itsdangerous==2.2.0
 redis==5.2.1
+PyYAML==6.0.2
