@@ -19,9 +19,7 @@ class Settings(BaseSettings):
     rabbit_scope_vhost: str = Field()
     rabbit_proxy_vhost: str = Field()
 
-    model_config = SettingsConfigDict(
-        env_nested_delimiter="__"
-    )
+    model_config = SettingsConfigDict(env_nested_delimiter="__")
 
 
 def _generate_settings():
