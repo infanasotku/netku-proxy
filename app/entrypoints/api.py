@@ -7,9 +7,15 @@ from app.container import Container
 
 
 def create_lifespan(container: Container):
+    broker = container.broker()
+
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        yield
+        try:
+            await broker.connect()
+            yield
+        finally:
+            await broker.close()
 
     return lifespan
 
