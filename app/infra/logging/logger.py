@@ -11,6 +11,11 @@ class AppFormatter(DefaultFormatter):
     RESET = "\033[0m"
 
     def formatMessage(self, record):
+        if getattr(record, "queue", None):
+            record.queue_fmt = f" [queue={getattr(record, 'queue')}]"
+        else:
+            record.queue_fmt = ""
+
         msg = super().formatMessage(record)
 
         words = msg.split(" ")
