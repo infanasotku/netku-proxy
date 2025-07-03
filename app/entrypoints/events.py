@@ -43,10 +43,13 @@ def create_app():
     scope_broker.include_router(scope.router)
 
     app = FastStream(
-        broker,
+        scope_broker,
         logger=logger,
         lifespan=create_lifespan(scope_broker, broker),
-    ).as_asgi(asyncapi_path="/docs")
+        title="Proxy events",
+        version="",
+        identifier="urn:events",
+    ).as_asgi(asyncapi_path=None)
     app.__dict__["container"] = container
 
     return app
