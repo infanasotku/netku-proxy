@@ -6,7 +6,7 @@ import yaml
 from uvicorn.logging import DefaultFormatter
 
 
-class AppFormatter(DefaultFormatter):
+class LogFormatter(DefaultFormatter):
     CYAN = "\033[96m"
     RESET = "\033[0m"
 
@@ -29,12 +29,17 @@ class AppFormatter(DefaultFormatter):
         return " ".join(words)
 
 
+class HideReceived(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.getMessage() != "Received"
+
+
 def _get_config() -> dict:
     config_path = (pathlib.Path(__file__).parent / "config.yaml").resolve().as_posix()
 
     with open(config_path, "r") as config_file:
         config = yaml.safe_load(config_file)
-        config["formatters"]["default"]["()"] = AppFormatter
+        config["formatters"]["default"]["()"] = LogFormatter
         return config
 
 
@@ -45,3 +50,4 @@ def _create_logger(config: dict) -> logging.Logger:
 
 config = _get_config()
 logger = _create_logger(config)
+logger.addFilter(HideReceived())
