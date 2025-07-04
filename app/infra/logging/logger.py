@@ -16,6 +16,11 @@ class LogFormatter(DefaultFormatter):
         else:
             record.queue_fmt = ""
 
+        if getattr(record, "channel", None):
+            record.channel_fmt = f" [channel={getattr(record, 'channel')}]"
+        else:
+            record.channel_fmt = ""
+
         msg = super().formatMessage(record)
 
         words = msg.split(" ")

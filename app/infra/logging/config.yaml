@@ -3,7 +3,7 @@ disable_existing_loggers: False
 formatters:
   default:
     "()": uvicorn.logging.DefaultFormatter
-    format: "%(levelprefix)s [%(asctime)s] %(queue_fmt)s %(message)s"
+    format: "%(levelprefix)s [%(asctime)s] %(queue_fmt)s%(channel_fmt)s %(message)s"
     use_colors: null
     datefmt: "%d-%m-%Y %H:%M:%S"
   access:
