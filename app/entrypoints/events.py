@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from faststream import FastStream
 from faststream.redis import RedisBroker
+from dependency_injector import providers
 
 from app.infra.config import settings
 from app.infra.logging import logger
@@ -10,9 +11,12 @@ from app.container import Container
 from app.controllers.events import engine
 
 
-def create_lifespan(container: Container):
+def create_lifespan(container: Container, engine_broker: RedisBroker):
     @asynccontextmanager
     async def lifespan(_):
+        redis = await engine_broker.connect()  # For getting redis instance
+        container.redis.override(providers.Singleton(lambda: redis))
+
         future = container.init_resources()
         if future is not None:
             await future
@@ -40,7 +44,7 @@ def create_app():
     app = FastStream(
         engine_broker,
         logger=logger,
-        lifespan=create_lifespan(container),
+        lifespan=create_lifespan(container, engine_broker),
         title="Proxy events",
         version="",
         identifier="urn:events",
