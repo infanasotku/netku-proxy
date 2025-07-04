@@ -8,6 +8,7 @@ from app.infra.config.admin import AdminSettings
 from app.infra.config.fastapi import FastAPISettings
 from app.infra.config.postgres import PostgreSQLSettings
 from app.infra.config.rabbitmq import RabbitMQSettings
+from app.infra.config.redis import RedisSettings
 
 
 class Settings(BaseSettings):
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     fastapi: FastAPISettings
     postgres: PostgreSQLSettings
     rabbit: RabbitMQSettings
+    redis: RedisSettings
 
     rabbit_scope_vhost: str = Field()
     rabbit_proxy_vhost: str = Field()
