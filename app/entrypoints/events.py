@@ -28,6 +28,11 @@ def create_lifespan(container: Container):
 def create_app():
     container = Container()
     container.config.from_pydantic(settings)
+    container.wire(
+        modules=[
+            "app.controllers.events.engine",
+        ]
+    )
 
     engine_broker = RedisBroker(settings.redis.dsn, logger=logger)
     engine_broker.include_router(engine.router)

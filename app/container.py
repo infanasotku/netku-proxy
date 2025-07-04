@@ -1,6 +1,7 @@
 from dependency_injector import providers, containers
 from faststream.rabbit import RabbitBroker
 
+from app.services.proxy import ProxyServiceImpl
 from app.infra.logging import logger
 
 
@@ -18,3 +19,5 @@ class Container(containers.DeclarativeContainer):
     broker = providers.Resource(
         get_broker, config.rabbit.dsn, virtualhost=config.rabbit_proxy_vhost
     )
+
+    proxy_service = providers.Singleton(ProxyServiceImpl)

@@ -1,7 +1,10 @@
 from faststream.redis import RedisRouter
+from dependency_injector.wiring import inject, Provide
 from pydantic import BaseModel
 
 from app.infra.redis.streams import engine_stream
+from app.contracts.services.proxy import ProxyService
+from app.container import Container
 
 router = RedisRouter()
 
@@ -20,9 +23,15 @@ async def handle_keyevents(key_event: RedisKeyEvent):
             await handle_engine_info_changed(key_event.key)
 
 
-async def handle_engine_died(key: str):
-    print("dead", key)
+@inject
+async def handle_engine_died(
+    key: str, proxy_service: ProxyService = Provide[Container.proxy_service]
+):
+    print("died", key)
 
 
-async def handle_engine_info_changed(key: str):
+@inject
+async def handle_engine_info_changed(
+    key: str, proxy_service: ProxyService = Provide[Container.proxy_service]
+):
     print("hset", key)
