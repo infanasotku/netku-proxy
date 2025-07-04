@@ -4,8 +4,8 @@ uvicorn==0.35.0
 sqlalchemy[asyncio]==2.0.41
 faststream[rabbit]==0.5.43
 sqladmin==0.20.1
-dependency-injector==4.48.1
 grpcio==1.73.1
 itsdangerous==2.2.0
 redis==6.2.0
 PyYAML==6.0.2
+dependency_injector==4.45.0
