@@ -62,7 +62,7 @@ class EngineService(ABC):
 
     @abstractmethod
     async def upsert(
-        self, meta: EngineCmd, *, caused_by: str | None = None, version: Version
+        self, engine: EngineCmd, *, caused_by: str | None = None, version: Version
     ):
         """
         Create **or** update the engine metadata in an *exactly-once* fashion.
@@ -75,7 +75,7 @@ class EngineService(ABC):
         - **Present `version` older** -> *No-op* – stale duplicate is ignored
 
         Args:
-            meta:
+            engine:
                 Validated DTO carrying the desired state
                 (`id`, `uuid`, `running`, `addr`, `created`, …).
             caused_by:

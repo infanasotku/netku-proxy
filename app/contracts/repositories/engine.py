@@ -14,7 +14,7 @@ class EngineRepository(ABC):
         """
 
     @abstractmethod
-    async def save(self, meta: Engine) -> bool:
+    async def save(self, engine: Engine) -> bool:
         """
         Persist the *current* state of an ``Engine`` aggregate.
 
@@ -23,7 +23,7 @@ class EngineRepository(ABC):
 
         * **Insert** – if the aggregate does not exist yet.
         * **Update** – if the stored *version* is *older* than
-          ``meta.version``.
+          ``engine.version``.
           “Older” is defined by the concrete adapter, but **MUST** be a strict,
           monotonic ordering (e.g. Redis‐stream ``(ver_ts, ver_seq)`` or a
           numeric version counter).

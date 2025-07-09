@@ -9,5 +9,5 @@ class PostgresEngineRepository(EngineRepository, BasePostgresRepository):
     async def get_for_update(self, engine_id: UUID) -> Engine | None:
         raise NotImplementedError
 
-    async def save(self, meta: Engine) -> bool:
+    async def save(self, engine: Engine) -> bool:
         raise NotImplementedError

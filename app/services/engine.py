@@ -10,30 +10,30 @@ class EngineServiceImpl(EngineService):
 
     async def remove(self, id, *, caused_by=None, version):
         async with self._uow.begin(caused_by=caused_by) as uow:
-            current_meta = await uow.engines.get_for_update(id)
-            if current_meta is None:
+            current_engine = await uow.engines.get_for_update(id)
+            if current_engine is None:
                 raise EngineRemoveError(id)
-            current_meta.remove(version)
+            current_engine.remove(version)
 
-            changed = await uow.engines.save(current_meta)
+            changed = await uow.engines.save(current_engine)
             if changed:
-                uow.collect(current_meta.pull_events())
+                uow.collect(current_engine.pull_events())
 
-    async def upsert(self, meta, *, caused_by=None, version):
+    async def upsert(self, engine, *, caused_by=None, version):
         async with self._uow.begin(caused_by=caused_by) as uow:
-            current_meta = await uow.engines.get_for_update(meta.id)
-            if current_meta is None:
-                current_meta = Engine(
-                    id=meta.id,
-                    uuid=meta.uuid,
+            current_engine = await uow.engines.get_for_update(engine.id)
+            if current_engine is None:
+                current_engine = Engine(
+                    id=engine.id,
+                    uuid=engine.uuid,
                     status=EngineStatus.READY,
-                    created=meta.created,
-                    addr=meta.addr,
+                    created=engine.created,
+                    addr=engine.addr,
                     version=version,
                 )
             else:
-                current_meta.update(meta.running, meta.uuid, version=version)
+                current_engine.update(engine.running, engine.uuid, version=version)
 
-            changed = await uow.engines.save(current_meta)
+            changed = await uow.engines.save(current_engine)
             if changed:
-                uow.collect(current_meta.pull_events())
+                uow.collect(current_engine.pull_events())
