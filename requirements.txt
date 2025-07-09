@@ -10,3 +10,4 @@ dependency_injector==4.48.0
 sqlalchemy[asyncio]==2.0.41
 faststream[rabbit]==0.5.44
 faststream[redis]==0.5.44
+asyncpg==0.30.0
