@@ -10,7 +10,7 @@ class DomainEvent:
     version: str
 
     # Internal fields
-    id: UUID = field(init=False)
+    id: UUID = field(init=False)  # Deterministic field
     occurred_at: datetime = field(default_factory=datetime.now, init=False)
 
     _registry: ClassVar[dict[str, Type["DomainEvent"]]] = {}
