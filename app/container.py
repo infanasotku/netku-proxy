@@ -2,7 +2,7 @@ from dependency_injector import providers, containers
 from faststream.rabbit import RabbitBroker
 from faststream.redis import RedisBroker
 
-from app.services.proxy import ProxyServiceImpl
+from app.services.engine import EngineServiceImpl
 from app.infra.logging import logger
 
 
@@ -30,4 +30,4 @@ class Container(containers.DeclarativeContainer):
         get_broker, config.rabbit.dsn, virtualhost=config.rabbit_proxy_vhost
     )
 
-    proxy_service = providers.Singleton(ProxyServiceImpl)
+    engine_service = providers.Singleton(EngineServiceImpl)
