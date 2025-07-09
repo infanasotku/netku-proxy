@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from app.domains.engine import EngineMeta
+from app.domains.engine import Engine
 
 
 class EngineRepository(ABC):
     @abstractmethod
-    async def get_for_update(self, engine_id: UUID) -> EngineMeta | None:
+    async def get_for_update(self, engine_id: UUID) -> Engine | None:
         """
         Retrieve the **current persistent snapshot** of an ``EngineMeta`` aggregate
         and **reserve it for exclusive write-access** for the remainder of the
@@ -14,7 +14,7 @@ class EngineRepository(ABC):
         """
 
     @abstractmethod
-    async def save(self, meta: EngineMeta) -> bool:
+    async def save(self, meta: Engine) -> bool:
         """
         Persist the *current* state of an ``EngineMeta`` aggregate.
 

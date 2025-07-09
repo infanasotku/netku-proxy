@@ -40,7 +40,7 @@ class EngineUpdated(DomainEvent):
 
 
 @dataclass
-class EngineMeta(BaseDomain):
+class Engine(BaseDomain):
     id: UUID
     uuid: UUID | None  # uuid from engine
     status: EngineStatus

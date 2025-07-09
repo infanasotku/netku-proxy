@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.infra.redis.streams import engine_stream
 from app.contracts.services.proxy import EngineRemoveError, EngineService
-from app.schemas.engine import EngineMetaCmd
+from app.schemas.engine import EngineCmd
 from app.container import Container
 
 from app.domains.engine import Version
@@ -104,6 +104,6 @@ async def handle_engine_info_changed(
     data: dict[bytes, bytes] = await cast(Awaitable, redis.hgetall(redis_key))
     payload = {k.decode(): data[k].decode() for k in data}
     payload["id"] = engine_key
-    meta = EngineMetaCmd.model_validate_strings(payload)
+    meta = EngineCmd.model_validate_strings(payload)
 
     await engine_service.upsert(meta, caused_by=outbox_id, version=version)

@@ -1,7 +1,7 @@
 from app.contracts.services.proxy import EngineService, EngineRemoveError
 from app.contracts.uow import EngineUnitOfWork
 
-from app.domains.engine import EngineMeta, EngineStatus
+from app.domains.engine import Engine, EngineStatus
 
 
 class EngineServiceImpl(EngineService):
@@ -23,7 +23,7 @@ class EngineServiceImpl(EngineService):
         async with self._uow.begin(caused_by=caused_by) as uow:
             current_meta = await uow.engines.get_for_update(meta.id)
             if current_meta is None:
-                current_meta = EngineMeta(
+                current_meta = Engine(
                     id=meta.id,
                     uuid=meta.uuid,
                     status=EngineStatus.READY,

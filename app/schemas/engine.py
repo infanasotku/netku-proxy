@@ -4,7 +4,7 @@ from uuid import UUID
 from app.schemas import BaseSchema
 
 
-class EngineMetaCmd(BaseSchema):
+class EngineCmd(BaseSchema):
     id: UUID
     created: datetime
     running: bool

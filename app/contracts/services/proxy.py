@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from uuid import UUID
 
 from app.domains.engine import Version
-from app.schemas.engine import EngineMetaCmd
+from app.schemas.engine import EngineCmd
 
 
 class EngineRemoveError(KeyError):
@@ -62,7 +62,7 @@ class EngineService(ABC):
 
     @abstractmethod
     async def upsert(
-        self, meta: EngineMetaCmd, *, caused_by: str | None = None, version: Version
+        self, meta: EngineCmd, *, caused_by: str | None = None, version: Version
     ):
         """
         Create **or** update the engine metadata in an *exactly-once* fashion.
