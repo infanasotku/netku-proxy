@@ -25,8 +25,7 @@ class DomainEvent:
             ),
         )
 
-    def __init_subclass__(cls, **kw):
-        super().__init_subclass__(**kw)
+    def __init_subclass__(cls):
         DomainEvent._registry[cls.__name__] = cls
 
     def to_dict(self) -> dict[str, Any]:
