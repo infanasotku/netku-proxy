@@ -70,6 +70,7 @@ async def handle_keyevents(key_event: RedisKeyEvent, message: RedisMessage):
                 )
     except Exception:
         await message.nack()
+        raise
     else:
         await message.ack()
 
