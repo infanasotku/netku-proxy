@@ -21,7 +21,7 @@ class EngineService(ABC):
     Concrete implementations (e.g., `EngineServiceImpl`) must:
 
     - open a transactional **Unit of Work**;
-    - apply domain rules (`EngineMeta.remove`, `.update`, ...);
+    - apply domain rules (`Engine.remove`, `.update`, ...);
     - persist changes through repository ports (`uow.engines.save`);
     - push domain events to the outbox via `uow.collect`.
 
@@ -70,7 +70,7 @@ class EngineService(ABC):
         Decision matrix
         ---------------
         Aggregate state -> Action
-        - **Not present** -> *Insert* a new `EngineMeta`
+        - **Not present** -> *Insert* a new `Engine`
         - **Present `version` newer** -> *Update* existing aggregate
         - **Present `version` older** -> *No-op* – stale duplicate is ignored
 
