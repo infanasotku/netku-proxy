@@ -28,9 +28,9 @@ class Container(containers.DeclarativeContainer):
 
     async_engine = providers.Singleton(
         create_async_engine,
-        config.psql_dsn,
+        config.postgres.dsn,
         connect_args=providers.Dict(
-            server_settings=providers.Dict(search_path=config.postgres.dsn)
+            server_settings=providers.Dict(search_path=config.postgres.sql_schema)
         ),
         pool_pre_ping=True,
         pool_recycle=3600,
