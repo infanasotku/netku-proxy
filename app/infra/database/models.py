@@ -2,7 +2,7 @@ from typing import Annotated
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import UniqueConstraint, Enum
+from sqlalchemy import UniqueConstraint, Enum, DateTime
 from sqlalchemy.orm import mapped_column, Mapped, DeclarativeBase
 from sqlalchemy.dialects.postgresql import UUID as SQLUUID, BIGINT
 
@@ -22,7 +22,7 @@ class Engine(Base):
     __tablename__ = "engines"
 
     uuid: Mapped[UUID] = mapped_column(SQLUUID(as_uuid=True), nullable=True)
-    created: Mapped[datetime] = mapped_column(nullable=False)
+    created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[EngineStatus] = mapped_column(Enum(EngineStatus), nullable=False)
     addr: Mapped[str] = mapped_column(nullable=False)
 
