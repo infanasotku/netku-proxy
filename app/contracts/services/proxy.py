@@ -12,6 +12,9 @@ class EngineRemoveError(KeyError):
         super().__init__(message)
         self.id = id
 
+    def __str__(self) -> str:
+        return str(self.args[0])
+
 
 class EngineService(ABC):
     """
