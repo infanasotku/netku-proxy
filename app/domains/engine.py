@@ -68,7 +68,9 @@ class Engine(BaseDomain):
         self._events.append(event)
 
     def remove(self, version: Version):
-        if version.ts <= self.version.ts or version.seq <= self.version.seq:
+        if version.ts < self.version.ts or (
+            version.ts == self.version.ts and version.seq <= self.version.seq
+        ):
             return
 
         self.status = EngineStatus.DEAD
