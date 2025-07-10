@@ -101,8 +101,14 @@ async def handle_engine_info_changed(
     redis_key: str,
     redis: Redis = Provide[Container.redis],
     engine_service: EngineService = Provide[Container.engine_service],
+    logger: Logger = Provide[Container.logger],
 ):
     data: dict[bytes, bytes] = await cast(Awaitable, redis.hgetall(redis_key))
+    if len(data) == 0:
+        logger.warning(
+            f"Engine with ID {engine_key} already removed, processing [info changed] event end."
+        )
+
     payload = {k.decode(): data[k].decode() for k in data}
     payload["id"] = engine_key
     engine = EngineCmd.model_validate_strings(payload)
