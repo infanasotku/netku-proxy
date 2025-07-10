@@ -44,7 +44,7 @@ def _get_outbox_id(message: RedisMessage):
     return "{0}:{1}".format(stream_name, message_id)
 
 
-@router.subscriber(stream=engine_stream, no_ack=True)
+@router.subscriber(stream=engine_stream)
 async def handle_keyevents(key_event: RedisKeyEvent, message: RedisMessage):
     _check_prefix(key_event.key)
 
@@ -71,8 +71,6 @@ async def handle_keyevents(key_event: RedisKeyEvent, message: RedisMessage):
     except Exception:
         await message.nack()
         raise
-    else:
-        await message.ack()
 
 
 @inject
