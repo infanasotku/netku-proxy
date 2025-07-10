@@ -1,4 +1,4 @@
-from app.contracts.services.proxy import EngineService, EngineRemoveError
+from app.contracts.services.engine import EngineService, EngineRemoveError
 from app.contracts.uow import EngineUnitOfWork
 
 from app.domains.engine import Engine, EngineStatus

@@ -9,7 +9,7 @@ from redis.asyncio import Redis
 from pydantic import BaseModel
 
 from app.infra.redis.streams import engine_stream
-from app.contracts.services.proxy import EngineRemoveError, EngineService
+from app.contracts.services.engine import EngineRemoveError, EngineService
 from app.schemas.engine import EngineCmd
 from app.container import Container
 
