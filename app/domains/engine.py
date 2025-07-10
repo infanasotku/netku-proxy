@@ -49,7 +49,9 @@ class Engine(BaseDomain):
     version: Version
 
     def update(self, running: bool, uuid: UUID | None = None, *, version: Version):
-        if version.ts <= self.version.ts or version.seq <= self.version.seq:
+        if version.ts < self.version.ts or (
+            version.ts == self.version.ts and version.seq <= self.version.seq
+        ):
             return
 
         status = EngineStatus.ACTIVE if running else EngineStatus.READY
