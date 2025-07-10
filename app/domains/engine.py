@@ -74,6 +74,7 @@ class Engine(BaseDomain):
             return
 
         self.status = EngineStatus.DEAD
+        self.version = version
 
         event = EngineDead(self.id, version.to_stream_id())
         self._events.append(event)
