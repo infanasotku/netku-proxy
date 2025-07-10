@@ -7,6 +7,6 @@ from app.schemas import BaseSchema
 class EngineCmd(BaseSchema):
     id: UUID
     created: datetime
-    running: bool
+    running: bool = False
     uuid: UUID | None = None
     addr: str
