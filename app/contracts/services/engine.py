@@ -87,3 +87,13 @@ class EngineService(ABC):
             version:
                 Version token guaranteeing proper ordering inside the aggregate.
         """
+
+    @abstractmethod
+    async def restart(self, id: UUID, *, uuid: UUID):
+        """
+        Restart the physics engine.
+
+        Args:
+            id (UUID): The identifier of the engine to restart.
+            uuid (UUID): The identifier with which the engine will be restart.
+        """
