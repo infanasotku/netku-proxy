@@ -46,6 +46,6 @@ class EngineServiceImpl(EngineService):
         async with self._uow.begin() as uow:
             engine = await uow.engines.get(id)
             if engine is None:
-                pass
+                raise EngineNotExistError(id)
 
-            # TODO:
+            await self._manager.restart(uuid, addr=engine.addr)
