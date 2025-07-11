@@ -1,7 +1,7 @@
 from uuid import NAMESPACE_URL, uuid5
+import json
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-
 
 from app.contracts.repositories.outbox import OutboxRepository
 from app.infra.database.repositories.base import BasePostgresRepository
@@ -26,7 +26,7 @@ class PostgresOutboxRepository(OutboxRepository, BasePostgresRepository):
                 .values(
                     id=oid,
                     caused_by=caused_by,
-                    body=ev.to_dict(),
+                    body=json.loads(json.dumps(ev.to_dict(), default=str)),
                 )
                 .on_conflict_do_nothing(index_elements=["id"])
             )
