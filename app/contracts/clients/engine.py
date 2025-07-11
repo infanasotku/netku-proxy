@@ -4,7 +4,7 @@ from uuid import UUID
 
 class EngineManager(ABC):
     @abstractmethod
-    async def restart(self, uuid: UUID):
+    async def restart(self, uuid: UUID, *, addr: str):
         """
         Request a restart of the proxy engine and wait until it completes.
 
@@ -17,4 +17,5 @@ class EngineManager(ABC):
 
         Args:
             uuid (UUID): The identifier with which the engine will be restart.
+            addr (str): Network address (in 'host:port' format) of the engine to be restarted.
         """
