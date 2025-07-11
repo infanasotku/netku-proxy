@@ -48,10 +48,15 @@ class Engine(Domain):
     addr: str
     version: Version
 
-    def update(self, running: bool, uuid: UUID | None = None, *, version: Version):
+    def _is_newer(self, version: Version):
         if version.ts < self.version.ts or (
             version.ts == self.version.ts and version.seq <= self.version.seq
         ):
+            return False
+        return True
+
+    def update(self, running: bool, uuid: UUID | None = None, *, version: Version):
+        if not self._is_newer(version):
             return
 
         status = EngineStatus.ACTIVE if running else EngineStatus.READY
@@ -68,9 +73,7 @@ class Engine(Domain):
         self._events.append(event)
 
     def remove(self, version: Version):
-        if version.ts < self.version.ts or (
-            version.ts == self.version.ts and version.seq <= self.version.seq
-        ):
+        if not self._is_newer(version):
             return
 
         self.status = EngineStatus.DEAD
