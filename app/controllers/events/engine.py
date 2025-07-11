@@ -44,14 +44,24 @@ def _get_outbox_id(message: RedisMessage):
     return "{0}:{1}".format(stream_name, message_id)
 
 
+@inject
+def _get_logger(logger: Logger = Provide[Container.logger]):
+    return logger
+
+
 @router.subscriber(stream=engine_stream)
-async def handle_keyevents(key_event: RedisKeyEvent, message: RedisMessage):
+async def handle_keyevents(
+    key_event: RedisKeyEvent,
+    message: RedisMessage,
+):
     _check_prefix(key_event.key)
 
     engine_key = key_event.key.removeprefix(KEY_PREFIX)
     stream_id = _get_stream_id(message)
     outbox_id = _get_outbox_id(message)
     version = Version.from_stream_id(stream_id)
+
+    logger = _get_logger()
 
     try:
         match key_event.event:
@@ -68,9 +78,19 @@ async def handle_keyevents(key_event: RedisKeyEvent, message: RedisMessage):
                     redis_key=key_event.key,
                     version=version,
                 )
-    except Exception:
+            case _:
+                logger.warning(f"Unknown event type: {key_event.event}")
+    except Exception as e:
+        logger.error(
+            f"Error processing event [{key_event.event}] for engine [{engine_key}]  id [{stream_id}]: {e}",
+            exc_info=True,
+        )
         await message.nack()
-        raise
+    else:
+        logger.info(
+            f"Processed event [{key_event.event}] for engine [{engine_key}] id [{stream_id}]",
+            extra=dict(channel=engine_stream.name),
+        )
 
 
 @inject

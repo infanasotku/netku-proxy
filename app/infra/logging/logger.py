@@ -36,7 +36,7 @@ class LogFormatter(DefaultFormatter):
 
 class HideReceived(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return record.getMessage() != "Received"
+        return record.getMessage() != "Received" and record.getMessage() != "Processed"
 
 
 def _get_config() -> dict:
