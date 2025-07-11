@@ -93,6 +93,11 @@ class EngineService(ABC):
         """
         Restart the physics engine.
 
+        Note
+        --------
+        This method does not modify any persistent state (e.g., database).
+        It only restarts the engine instance identified by the given `id`.
+
         Args:
             id (UUID): The identifier of the engine to restart.
             uuid (UUID): The identifier with which the engine will be restart.
