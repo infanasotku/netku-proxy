@@ -9,7 +9,7 @@ from redis.asyncio import Redis
 from pydantic import BaseModel
 
 from app.infra.redis.streams import engine_stream
-from app.contracts.services.engine import EngineRemoveError, EngineService
+from app.contracts.services.engine import EngineNotExistError, EngineService
 from app.schemas.engine import EngineCmd
 from app.container import Container
 
@@ -106,7 +106,7 @@ async def handle_engine_dead(
         await engine_service.remove(
             UUID(engine_key), caused_by=outbox_id, version=version
         )
-    except EngineRemoveError as e:
+    except EngineNotExistError as e:
         logger.warning(str(e))
 
 

@@ -5,7 +5,7 @@ from app.domains.engine import Version
 from app.schemas.engine import EngineCmd
 
 
-class EngineRemoveError(KeyError):
+class EngineNotExistError(KeyError):
     def __init__(self, id: UUID, message: str | None = None) -> None:
         if message is None:
             message = f"Engine with ID {id} does not exist."
@@ -44,7 +44,7 @@ class EngineService(ABC):
         - **Subsequent retries** with the *same* `version`
           -> *no‐op* (method exits silently, no new outbox entry).
         - **Aggregate not found**
-          -> raises `EngineRemoveError`.
+          -> raises `EngineNotExistError`.
 
         Args:
             id:
@@ -58,7 +58,7 @@ class EngineService(ABC):
                 - used for optimistic concurrency.
 
         Raises:
-            EngineRemoveError:
+            EngineNotExistError:
                 If the engine with the given *id* is not present **before**
                 executing the command.
         """
@@ -101,4 +101,9 @@ class EngineService(ABC):
         Args:
             id (UUID): The identifier of the engine to restart.
             uuid (UUID): The identifier with which the engine will be restart.
+
+        Raises:
+            EngineNotExistError:
+                If the engine with the given *id* is not present **before**
+                executing the command.
         """

@@ -1,18 +1,22 @@
-from app.contracts.services.engine import EngineService, EngineRemoveError
+from uuid import UUID
+
+from app.contracts.clients.engine import EngineManager
+from app.contracts.services.engine import EngineService, EngineNotExistError
 from app.contracts.uow import EngineUnitOfWork
 
 from app.domains.engine import Engine, EngineStatus
 
 
 class EngineServiceImpl(EngineService):
-    def __init__(self, uow: EngineUnitOfWork):
+    def __init__(self, uow: EngineUnitOfWork, manager: EngineManager):
         self._uow = uow
+        self._manager = manager
 
     async def remove(self, id, *, caused_by=None, version):
         async with self._uow.begin(caused_by=caused_by) as uow:
             current_engine = await uow.engines.get_for_update(id)
             if current_engine is None:
-                raise EngineRemoveError(id)
+                raise EngineNotExistError(id)
             current_engine.remove(version)
 
             changed = await uow.engines.save(current_engine)
@@ -37,3 +41,11 @@ class EngineServiceImpl(EngineService):
             changed = await uow.engines.save(current_engine)
             if changed:
                 uow.collect(current_engine.pull_events())
+
+    async def restart(self, id: UUID, *, uuid: UUID):
+        async with self._uow.begin() as uow:
+            engine = await uow.engines.get(id)
+            if engine is None:
+                pass
+
+            # TODO:
