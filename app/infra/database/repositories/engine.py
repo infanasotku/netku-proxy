@@ -42,7 +42,7 @@ class PostgresEngineRepository(EngineRepository, BasePostgresRepository):
                 index_elements=(EngineModel.id,),
                 set_=update_dict,
                 where=tuple_(EngineModel.version_timestamp, EngineModel.version_seq)
-                <= (engine.version.ts, engine.version.seq),
+                < (engine.version.ts, engine.version.seq),
             )
             .returning(literal_column("TRUE"))
         )
