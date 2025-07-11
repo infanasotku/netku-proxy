@@ -4,7 +4,7 @@ from app.domains.event import DomainEvent
 
 
 @dataclass
-class BaseDomain:
+class Domain:
     _events: list[DomainEvent] = field(default_factory=list, init=False, repr=False)
 
     def pull_events(self) -> list[DomainEvent]:

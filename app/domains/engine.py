@@ -4,7 +4,7 @@ from enum import Enum
 from uuid import UUID
 
 from app.domains.event import DomainEvent
-from app.domains.domain import BaseDomain
+from app.domains.domain import Domain
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ class EngineUpdated(DomainEvent):
 
 
 @dataclass
-class Engine(BaseDomain):
+class Engine(Domain):
     id: UUID
     uuid: UUID | None  # uuid from engine
     status: EngineStatus
