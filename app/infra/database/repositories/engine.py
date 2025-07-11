@@ -4,12 +4,12 @@ from sqlalchemy import literal_column, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.contracts.repositories.engine import EngineRepository
-from app.infra.database.repositories.base import BasePostgresRepository
+from app.infra.database.repositories.base import PostgresRepository
 from app.domains.engine import Engine, Version
 from app.infra.database.models import Engine as EngineModel
 
 
-class PostgresEngineRepository(EngineRepository, BasePostgresRepository):
+class PostgresEngineRepository(EngineRepository, PostgresRepository):
     async def get_for_update(self, engine_id: UUID) -> Engine | None:
         stmt = select(EngineModel).where(EngineModel.id == engine_id).with_for_update()
         row = await self._session.scalar(stmt)

@@ -4,12 +4,12 @@ import json
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.contracts.repositories.outbox import OutboxRepository
-from app.infra.database.repositories.base import BasePostgresRepository
+from app.infra.database.repositories.base import PostgresRepository
 from app.domains.event import DomainEvent
 from app.infra.database.models import OutboxRecord
 
 
-class PostgresOutboxRepository(OutboxRepository, BasePostgresRepository):
+class PostgresOutboxRepository(OutboxRepository, PostgresRepository):
     async def store(
         self, events: list[DomainEvent], *, caused_by: str | None = None
     ) -> None:
