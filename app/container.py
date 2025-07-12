@@ -6,6 +6,8 @@ from faststream.redis import RedisBroker
 from app.services.engine import EngineServiceImpl
 from app.infra.logging import logger
 from app.infra.database.uow import PostgresEngineUnitOfWork
+from app.infra.grpc.engine import create_grpc_manager
+from app.infra.grpc.channel import generate_create_channel_context
 
 
 async def get_broker(dsn: str, *, virtualhost: str | None = None):
@@ -38,13 +40,17 @@ class Container(containers.DeclarativeContainer):
     async_sessionmaker = providers.Singleton(
         async_sessionmaker[AsyncSession], async_engine
     )
-
     redis = providers.Resource(get_redis, config.redis.dsn)
+    create_channel_context = providers.Singleton(
+        generate_create_channel_context, logger, with_cert=True
+    )
 
     broker = providers.Resource(
         get_broker, config.rabbit.dsn, virtualhost=config.rabbit_proxy_vhost
     )
 
+    engine_manager = providers.Resource(create_grpc_manager, create_channel_context)
+
     uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)
 
-    engine_service = providers.Singleton(EngineServiceImpl, uow)
+    engine_service = providers.Singleton(EngineServiceImpl, uow, engine_manager)
