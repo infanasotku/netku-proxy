@@ -47,3 +47,21 @@ class EngineView(ModelView, model=models.Engine):
             raise
 
         return models.Engine()
+
+
+class OutboxView(ModelView, model=models.OutboxRecord):
+    name_plural = "Outbox"
+
+    can_delete = False
+    can_create = False
+    can_edit = False
+    can_export = True
+
+    column_list = [
+        models.OutboxRecord.id,
+        models.OutboxRecord.caused_by,
+        models.OutboxRecord.created_at,
+        models.OutboxRecord.published,
+        models.OutboxRecord.published_at,
+        models.OutboxRecord.body,
+    ]

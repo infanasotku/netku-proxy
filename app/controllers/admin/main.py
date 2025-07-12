@@ -25,4 +25,6 @@ def register_admin(
         title="Engine panel",
         authentication_backend=authentication_backend,
     )
+
     admin.add_view(views.EngineView)
+    admin.add_view(views.OutboxView)
