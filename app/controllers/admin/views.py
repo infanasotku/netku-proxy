@@ -40,10 +40,10 @@ class EngineView(ModelView, model=models.Engine):
         try:
             await engine_service.restart(id, uuid=uuid)
             logger.info(f"Engine with ID [{id}] restarted.")
-        except Exception as e:
+        except Exception:
             logger.error(
-                f"Error occured while restarting engine with ID {id}: {str(e)}",
-                exc_info=True,
+                f"Error occured while restarting engine with ID {id}:",
             )
+            raise
 
         return models.Engine()
