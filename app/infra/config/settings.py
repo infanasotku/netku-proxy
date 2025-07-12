@@ -9,6 +9,7 @@ from app.infra.config.fastapi import FastAPISettings
 from app.infra.config.postgres import PostgreSQLSettings
 from app.infra.config.rabbitmq import RabbitMQSettings
 from app.infra.config.redis import RedisSettings
+from app.infra.config.ssl import SSLSettings
 
 
 class Settings(BaseSettings):
@@ -17,6 +18,7 @@ class Settings(BaseSettings):
     postgres: PostgreSQLSettings
     rabbit: RabbitMQSettings
     redis: RedisSettings
+    ssl: SSLSettings = Field(default_factory=SSLSettings)
 
     rabbit_scope_vhost: str = Field()
     rabbit_proxy_vhost: str = Field()

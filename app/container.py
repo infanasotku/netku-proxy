@@ -42,7 +42,10 @@ class Container(containers.DeclarativeContainer):
     )
     redis = providers.Resource(get_redis, config.redis.dsn)
     create_channel_context = providers.Singleton(
-        generate_create_channel_context, logger, with_cert=True
+        generate_create_channel_context,
+        logger,
+        with_cert=True,
+        root_certificates=config.ssl.root_certificates,
     )
 
     broker = providers.Resource(
