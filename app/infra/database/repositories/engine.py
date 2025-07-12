@@ -50,3 +50,18 @@ class PostgresEngineRepository(EngineRepository, PostgresRepository):
         row: bool | None = await self._session.scalar(stmt)
 
         return bool(row)
+
+    async def get(self, engine_id: UUID) -> Engine | None:
+        stmt = select(EngineModel).where(EngineModel.id == engine_id)
+        row = await self._session.scalar(stmt)
+        if row is None:
+            return None
+
+        return Engine(
+            id=engine_id,
+            uuid=row.uuid,
+            status=row.status,
+            created=row.created,
+            addr=row.addr,
+            version=Version(ts=row.version_timestamp, seq=row.version_seq),
+        )
