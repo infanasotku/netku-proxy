@@ -1,7 +1,11 @@
 from uuid import UUID
 
 from app.contracts.clients.engine import EngineManager
-from app.contracts.services.engine import EngineService, EngineNotExistError
+from app.contracts.services.engine import (
+    EngineService,
+    EngineNotExistError,
+    EngineDeadError,
+)
 from app.contracts.uow import EngineUnitOfWork
 
 from app.domains.engine import Engine, EngineStatus
@@ -47,5 +51,7 @@ class EngineServiceImpl(EngineService):
             engine = await uow.engines.get(id)
             if engine is None:
                 raise EngineNotExistError(id)
+            if engine.status == EngineStatus.DEAD:
+                raise EngineDeadError(id)
 
             await self._manager.restart(uuid, addr=engine.addr)

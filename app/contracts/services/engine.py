@@ -16,6 +16,14 @@ class EngineNotExistError(KeyError):
         return str(self.args[0])
 
 
+class EngineDeadError(ValueError):
+    def __init__(self, id: UUID, message: str | None = None) -> None:
+        if message is None:
+            message = f"Cannot restart engine with ID {id}: engine is DEAD."
+        super().__init__(message)
+        self.id = id
+
+
 class EngineService(ABC):
     """
     High-level **use-case interface** responsible for command–side operations on
@@ -106,4 +114,6 @@ class EngineService(ABC):
             EngineNotExistError:
                 If the engine with the given *id* is not present **before**
                 executing the command.
+            EngineDeadError:
+                If the engine with the given *id* exists but is DEAD.
         """
