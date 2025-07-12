@@ -14,7 +14,7 @@ class GRPCEngineManager(EngineManager):
     def __init__(self, create_context: CreateChannelContext) -> None:
         self._create_context = create_context
         self._contexts: dict[str, AsyncContextManager[Channel]] = {}
-        self._pull: dict[str, Channel]
+        self._pull: dict[str, Channel] = {}
 
     async def _get_channel(self, addr: str) -> Channel:
         channel = self._pull.get(addr)
