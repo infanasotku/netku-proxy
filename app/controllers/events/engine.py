@@ -188,6 +188,7 @@ async def start_keyevents_reclaimer(redis: Redis, logger: Logger):
                 deliveries = deliveries_map.get(msg_id, 1)
 
                 if deliveries > MAX_RETRY:
+                    raw[b"original_id"] = msg_id
                     await redis.xadd(dlq_stream.name, raw)  # Send message to DLQ
                     xacks.append(msg_id)
                     continue
