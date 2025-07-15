@@ -21,7 +21,9 @@ def create_lifespan(container: Container, engine_broker: RedisBroker):
         if future is not None:
             await future
 
-        yield
+        async with engine.start_keyevents_reclaimer(redis, logger):
+            yield
+
         future = container.shutdown_resources()
         if future is not None:
             await future

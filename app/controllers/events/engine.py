@@ -1,14 +1,27 @@
+from contextlib import asynccontextmanager
 from logging import Logger
 from typing import Awaitable, cast
 from uuid import UUID
+import asyncio
 
 from faststream.exceptions import AckMessage
 from faststream.redis import RedisRouter, RedisMessage
+from faststream.redis.message import UnifyRedisMessage
+from faststream.broker.message import AckStatus
 from dependency_injector.wiring import inject, Provide
 from redis.asyncio import Redis
 from pydantic import BaseModel
 
-from app.infra.redis.streams import engine_stream
+from app.infra.redis.streams import (
+    engine_stream,
+    dlq_stream,
+    GROUP,
+    CONSUMER,
+    IDLE_MS,
+    BATCH,
+    PAUSE,
+    MAX_RETRY,
+)
 from app.contracts.services.engine import EngineNotExistError, EngineService
 from app.schemas.engine import EngineCmd
 from app.container import Container
@@ -38,8 +51,7 @@ def _get_stream_id(message: RedisMessage) -> str:
 
 
 def _get_outbox_id(message: RedisMessage):
-    raw_message = getattr(message, "raw_message")
-    stream_name: str = raw_message["channel"]
+    stream_name: str = message.raw_message["channel"]
     message_id: str = _get_stream_id(message)
     return "{0}:{1}".format(stream_name, message_id)
 
@@ -132,3 +144,92 @@ async def handle_engine_info_changed(
     engine = EngineCmd.model_validate_strings(payload)
 
     await engine_service.upsert(engine, caused_by=outbox_id, version=version)
+
+
+@asynccontextmanager
+async def start_keyevents_reclaimer(redis: Redis, logger: Logger):
+    async def _loop():
+        cursor = "0-0"
+
+        while True:
+            cursor, entries = await redis.xautoclaim(
+                engine_stream.name,
+                groupname=GROUP,
+                consumername=CONSUMER,
+                min_idle_time=IDLE_MS,
+                start_id=cursor,
+                count=BATCH,
+            )
+
+            if len(entries) == 0:
+                await asyncio.sleep(PAUSE)
+                continue
+
+            ids: list[bytes] = [id for id, _ in entries]
+            ids_sorted = sorted(
+                ids, key=lambda x: (int(x.split(b"-")[0]), int(x.split(b"-")[1]))
+            )
+
+            pendings = await redis.xpending_range(
+                engine_stream.name,
+                groupname=GROUP,
+                min=ids_sorted[0],
+                max=ids_sorted[-1],
+                count=len(ids_sorted),
+                consumername=CONSUMER,
+            )
+            deliveries_map: dict[bytes, int] = {
+                msg["message_id"]: msg["times_delivered"] for msg in pendings
+            }
+
+            xacks = []
+
+            for msg_id, raw in entries:
+                deliveries = deliveries_map.get(msg_id, 1)
+
+                if deliveries > MAX_RETRY:
+                    await redis.xadd(dlq_stream.name, raw)  # Send message to DLQ
+                    xacks.append(msg_id)
+                    continue
+
+                payload = {k.decode(): v.decode() for k, v in raw.items()}
+                event = RedisKeyEvent(**payload)
+                msg = UnifyRedisMessage(
+                    raw_message=dict(
+                        type="message", channel=engine_stream.name, data=raw
+                    ),
+                    body=raw,
+                )
+                cast(dict, msg.raw_message)["message_ids"] = [msg_id]
+
+                try:
+                    await handle_keyevents(event, msg)
+                except Exception:  # Unhandled error
+                    logger.error("Unhandled error in keyevents handler:", exc_info=True)
+                    continue
+
+                if msg.committed != AckStatus.nacked:
+                    xacks.append(msg_id)
+
+            if len(xacks) != 0:
+                await redis.xack(engine_stream.name, GROUP, *xacks)
+
+    async def _wrap():
+        try:
+            await _loop()
+        except Exception:
+            logger.critical(
+                "Unhandled error occured in keyevents reclaimer:", exc_info=True
+            )
+
+    task = asyncio.create_task(_wrap())
+
+    try:
+        yield
+    finally:
+        task.cancel()
+
+        try:
+            await task  # Forward erros from task
+        except asyncio.CancelledError:
+            pass
