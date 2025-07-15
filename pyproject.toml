@@ -1,0 +1,14 @@
+[tool.ruff]
+target-version = "py311"
+exclude = ["gen"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+
+[project]
+name = "netku-proxy"
+version = "1.0.0"
+license = { text = "MIT" }
+authors = [
+    { name = "Maxim Gerasimov", email = "infanasotku@gmail.com" }
+]
