@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel build
 
 
 # Building service requirements to wheel
-COPY ./services/proxy/requirements.txt .
+COPY requirements.txt .
 RUN pip wheel --no-cache-dir -r requirements.txt -w /build/wheels
 
 
