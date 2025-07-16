@@ -1,0 +1,12 @@
+Dockerfile
+.git
+.vscode
+.gitignore
+makefile
+README.md
+.editorconfig
+.env
+proto
+.github
+k8s
+LICENSE
