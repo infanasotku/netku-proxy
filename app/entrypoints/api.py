@@ -45,3 +45,8 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok"}
