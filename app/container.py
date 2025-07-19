@@ -11,17 +11,19 @@ from app.infra.grpc.channel import generate_create_channel_context
 
 
 async def get_broker(dsn: str, *, virtualhost: str | None = None):
+    if virtualhost is not None and virtualhost.startswith("/"):
+        virtualhost = "/" + virtualhost
     broker = RabbitBroker(dsn, virtualhost=virtualhost)
     await broker.connect()
     yield broker
-    await broker.close()
+    await broker.stop()
 
 
 async def get_redis(dsn: str):
     broker = RedisBroker(dsn)
     redis = await broker.connect()
     yield redis
-    await broker.close()
+    await broker.stop()
 
 
 class Container(containers.DeclarativeContainer):
