@@ -12,3 +12,4 @@ faststream[rabbit]==0.5.44
 faststream[redis]==0.5.44
 asyncpg==0.30.0
 certifi==2025.7.9
+protobuf==6.31.1
