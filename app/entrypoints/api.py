@@ -40,7 +40,9 @@ def create_app() -> FastAPI:
     app.mount(
         "/admin",
         create_admin(
-            username=settings.admin.username, password=settings.admin.password
+            settings.admin.username,
+            settings.admin.password,
+            secret=settings.admin.secret,
         ),
     )
 

@@ -13,9 +13,11 @@ def create_admin(
     username: str,
     password: str,
     engine: AsyncEngine = Provide[Container.async_engine],
+    *,
+    secret: str,
 ):
     authentication_backend = AdminAuthenticationBackend(
-        username=username, password=password
+        secret, username=username, password=password
     )
     admin_app = FastAPI()
     admin = Admin(
