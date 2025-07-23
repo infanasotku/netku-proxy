@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from app.infra.config import settings
 from app.container import Container
 
-from app.controllers.admin import register_admin
+from app.controllers.admin import create_admin
 
 
 def create_lifespan(container: Container):
@@ -37,8 +37,11 @@ def create_app() -> FastAPI:
     app = FastAPI(redoc_url=None, docs_url=None, lifespan=create_lifespan(container))
     app.__dict__["container"] = container
 
-    register_admin(
-        app, username=settings.admin.username, password=settings.admin.password
+    app.mount(
+        "/admin",
+        create_admin(
+            username=settings.admin.username, password=settings.admin.password
+        ),
     )
 
     return app
