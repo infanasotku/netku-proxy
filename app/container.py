@@ -19,8 +19,8 @@ async def get_broker(dsn: str, *, virtualhost: str | None = None):
     await broker.stop()
 
 
-async def get_redis(dsn: str):
-    broker = RedisBroker(dsn)
+async def get_redis(dsn: str, *, db: int = 0):
+    broker = RedisBroker(dsn, db=db)
     redis = await broker.connect()
     yield redis
     await broker.stop()
@@ -42,7 +42,7 @@ class Container(containers.DeclarativeContainer):
     async_sessionmaker = providers.Singleton(
         async_sessionmaker[AsyncSession], async_engine
     )
-    redis = providers.Resource(get_redis, config.redis.dsn)
+    redis = providers.Resource(get_redis, config.redis.dsn, db=config.redis.db)
     create_channel_context = providers.Singleton(
         generate_create_channel_context,
         logger,
