@@ -28,9 +28,9 @@ api:
         "--port",
         "5100",
       ]
-    ingress:
-      host: proxy.infanasotku.com
-      path: /
+  ingress:
+    host: proxy.infanasotku.com
+    path: /
 
 # --- EVENTS ---
 events:
