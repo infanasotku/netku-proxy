@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.events.container.name }}-{{ .Values.environment }}
+  annotations:
+    infanasotku.com: "Infanasotku software engineier"
+
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.events.container.name }}
+
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.events.container.name }}
+        environment: {{ .Values.environment }}
+
+    spec:
+      containers:
+        - name: {{ .Values.events.container.name }}
+          image: {{ .Values.container.image }}:{{ .Values.container.tag }}
+          imagePullPolicy: Always
+
+          command: ["uvicorn"]
+          args: {{ .Values.events.container.args | toJson }}
+          ports:
+            - containerPort: {{ .Values.events.container.port }}
+
+          envFrom:
+            - configMapRef:
+                name: netku-proxy-config
+            - secretRef:
+                name: netku-proxy-secrets
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5100
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5100
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+          securityContext:
+            capabilities:
+              drop: ["ALL"]

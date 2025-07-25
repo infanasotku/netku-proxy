@@ -1,0 +1,7 @@
+environment: prod
+container:
+  tag: latest
+
+config:
+  POSTGRES__DB_NAME: netku
+  REDIS__DB: 0

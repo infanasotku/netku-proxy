@@ -1,0 +1,50 @@
+# --- COMMON ---
+container:
+  image: registry.infanasotku.com:5501/netku/netku-proxy
+  tag: latest
+replicas: 2
+environment: prod
+name: netku-proxy
+
+config:
+  POSTGRES__DB_NAME: netku
+  REDIS__DB: 0
+
+# --- API ---
+api:
+  enabled: true
+  container:
+    name: netku-proxy-api
+    port: 5100
+    args:
+      [
+        "app.entrypoints.api:app",
+        "--proxy-headers",
+        "--forwarded-allow-ips=*",
+        "--workers",
+        "1",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5100",
+      ]
+    ingress:
+      host: proxy.infanasotku.com
+      path: /
+
+# --- EVENTS ---
+events:
+  enabled: true
+  container:
+    name: netku-proxy-events
+    port: 5101
+    args:
+      [
+        "app.entrypoints.events:app",
+      "--workers",
+      "1",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "5101",
+    ]
