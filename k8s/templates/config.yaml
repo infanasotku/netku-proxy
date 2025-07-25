@@ -23,4 +23,4 @@ data:
   # Redis
   REDIS__HOST: redis.infanasotku.com.
   REDIS__PORT: "6381"
-  REDIS__DB: {{ .Values.config.REDIS__DB }}
+  REDIS__DB: {{ .Values.config.REDIS__DB | quote }}
