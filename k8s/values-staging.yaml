@@ -9,4 +9,4 @@ config:
 # --- API ---
 api:
   ingress:
-    host: staging.proxy.infanasotku.com
+    host: test.proxy.infanasotku.com
