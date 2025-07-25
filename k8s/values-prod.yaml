@@ -4,4 +4,4 @@ container:
 
 config:
   POSTGRES__DB_NAME: netku
-  REDIS__DB: 0
+  REDIS__DB: "0"

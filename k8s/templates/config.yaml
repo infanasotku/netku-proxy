@@ -16,11 +16,11 @@ data:
   # RabbitMQ
   RABBIT__USERNAME: proxy
   RABBIT__HOST: rabbitmq.infanasotku.com.
-  RABBIT__PORT: 5670
+  RABBIT__PORT: "5670"
   RABBIT_SCOPE_VHOST: /client
   RABBIT_PROXY_VHOST: /proxy
 
   # Redis
   REDIS__HOST: redis.infanasotku.com.
-  REDIS__PORT: 6381
+  REDIS__PORT: "6381"
   REDIS__DB: {{ .Values.config.REDIS__DB }}

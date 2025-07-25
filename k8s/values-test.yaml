@@ -4,5 +4,5 @@ container:
 
 config:
   POSTGRES__DB_NAME: netku_debug
-  REDIS__DB: 1
+  REDIS__DB: "1"
 
