@@ -1,6 +1,6 @@
-environment: test
+environment: staging
 container:
-  tag: test
+  tag: staging
 
 config:
   POSTGRES__DB_NAME: netku_debug
@@ -9,4 +9,4 @@ config:
 # --- API ---
 api:
   ingress:
-    host: test.proxy.infanasotku.com
+    host: staging.proxy.infanasotku.com
