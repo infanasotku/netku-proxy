@@ -5,3 +5,8 @@ container:
 config:
   POSTGRES__DB_NAME: netku
   REDIS__DB: "0"
+
+# --- API ---
+api:
+  ingress:
+    host: proxy.infanasotku.com
