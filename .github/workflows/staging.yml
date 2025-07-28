@@ -42,53 +42,57 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-push, load-pr]
     environment: staging-deploy
-    if: ${{ (vars.SERVICES_KEYS || '') != '' }}
+    # if: ${{ (vars.SERVICES_KEYS || '') != '' }}
 
     steps:
-      - name: Set up SSH
+      - name: Debug SERVICES_KEYS
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-      - name: Install jq
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y jq
-      - name: Build Helm flags from PR labels
-        id: helm_flags
-        env:
-          SERVICES_KEYS: ${{ vars.SERVICES_KEYS }}
-          PR_DATA: ${{ needs.load-pr.outputs.pr_data }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          FLAGS=""
+          echo "vars.SERVICES_KEYS='${{ vars.SERVICES_KEYS }}'"
+          echo "Condition value = ${{ (vars.SERVICES_KEYS || '') != '' }}"
+      # - name: Set up SSH
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+      # - name: Install jq
+      #   run: |
+      #     sudo apt-get update -y
+      #     sudo apt-get install -y jq
+      # - name: Build Helm flags from PR labels
+      #   id: helm_flags
+      #   env:
+      #     SERVICES_KEYS: ${{ vars.SERVICES_KEYS }}
+      #     PR_DATA: ${{ needs.load-pr.outputs.pr_data }}
+      #   shell: bash
+      #   run: |
+      #     set -euo pipefail
+      #     FLAGS=""
 
-          LABELS=""
-          if [ -n "${PR_DATA:-}" ]; then
-            LABELS="$(echo "$PR_DATA" | jq -r '.labels[].name' 2>/dev/null | tr '\n' ' ' || true)"
-          fi
+      #     LABELS=""
+      #     if [ -n "${PR_DATA:-}" ]; then
+      #       LABELS="$(echo "$PR_DATA" | jq -r '.labels[].name' 2>/dev/null | tr '\n' ' ' || true)"
+      #     fi
 
-          IFS=',' read -ra SRV <<< "${SERVICES_KEYS}"
-          for svc in "${SRV[@]}"; do
-            key="$(echo "$svc" | xargs)"
-            [ -z "$key" ] && continue
-            if echo " $LABELS " | grep -q " $key "; then
-              FLAGS="$FLAGS --set $key.enabled=true"
-            else
-              FLAGS="$FLAGS --set $key.enabled=false"
-            fi
-          done
+      #     IFS=',' read -ra SRV <<< "${SERVICES_KEYS}"
+      #     for svc in "${SRV[@]}"; do
+      #       key="$(echo "$svc" | xargs)"
+      #       [ -z "$key" ] && continue
+      #       if echo " $LABELS " | grep -q " $key "; then
+      #         FLAGS="$FLAGS --set $key.enabled=true"
+      #       else
+      #         FLAGS="$FLAGS --set $key.enabled=false"
+      #       fi
+      #     done
 
-          echo "flags=$FLAGS" >> "$GITHUB_OUTPUT"
-      - name: Deploy via SSH
-        run: |
-          ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
-            cd ${{ secrets.PROJECT_DIR }}
+      #     echo "flags=$FLAGS" >> "$GITHUB_OUTPUT"
+      # - name: Deploy via SSH
+      #   run: |
+      #     ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
+      #       cd ${{ secrets.PROJECT_DIR }}
 
-            sops -d k8s/encoded-secrets.yaml > k8s/temp-secrets.yaml && \
-            helm upgrade --install netku-proxy-staging -f k8s/values-staging.yaml \
-            ${{ steps.helm_flags.outputs.flags }} --set container.tag=${{ github.sha }} --namespace netku-staging k8s \
-            && rm k8s/temp-secrets.yaml
-          EOF
+      #       sops -d k8s/encoded-secrets.yaml > k8s/temp-secrets.yaml && \
+      #       helm upgrade --install netku-proxy-staging -f k8s/values-staging.yaml \
+      #       ${{ steps.helm_flags.outputs.flags }} --set container.tag=${{ github.sha }} --namespace netku-staging k8s \
+      #       && rm k8s/temp-secrets.yaml
+      #     EOF
