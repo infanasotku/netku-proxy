@@ -9,6 +9,7 @@ name: netku-proxy
 config:
   POSTGRES__DB_NAME: netku
   REDIS__DB: "0"
+  REDIS__PORT: "6381"
 
 # --- API ---
 api:
