@@ -13,7 +13,6 @@ config:
 
 # --- API ---
 api:
-  enabled: true
   container:
     name: netku-proxy-api
     port: 5100
@@ -35,7 +34,6 @@ api:
 
 # --- EVENTS ---
 events:
-  enabled: true
   container:
     name: netku-proxy-events
     port: 5101
