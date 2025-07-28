@@ -27,7 +27,7 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ vars.REGISTRY_URL }}/netku/proxy:${{ github.sha }}
+            ${{ vars.REGISTRY_URL }}/netku/netku-proxy:${{ github.sha }}
 
   deploy:
     name: Deploy

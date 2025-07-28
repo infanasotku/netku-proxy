@@ -22,7 +22,7 @@ jobs:
         name: Check if SHA image exists (from staging)
         shell: bash
         run: |
-          if docker manifest inspect "${{ vars.REGISTRY_URL }}/netku/proxy:${{ github.sha }}" >/dev/null 2>&1; then
+          if docker manifest inspect "${{ vars.REGISTRY_URL }}/netku/netku-proxy:${{ github.sha }}" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -31,9 +31,9 @@ jobs:
       - name: Retag and push :latest from :${{ github.sha }}
         if: steps.check-image.outputs.exists == 'true'
         run: |
-          docker pull "${{ vars.REGISTRY_URL }}/netku/proxy:${{ github.sha }}"
-          docker tag  "${{ vars.REGISTRY_URL }}/netku/proxy:${{ github.sha }}" "${{ vars.REGISTRY_URL }}/netku/proxy:latest"
-          docker push "${{ vars.REGISTRY_URL }}/netku/proxy:latest"
+          docker pull "${{ vars.REGISTRY_URL }}/netku/netku-proxy:${{ github.sha }}"
+          docker tag  "${{ vars.REGISTRY_URL }}/netku/netku-proxy:${{ github.sha }}" "${{ vars.REGISTRY_URL }}/netku/netku-proxy:latest"
+          docker push "${{ vars.REGISTRY_URL }}/netku/netku-proxy:latest"
 
       - name: Build and push :latest (staging image not found)
         if: steps.check-image.outputs.exists == 'false'
@@ -43,7 +43,7 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ vars.REGISTRY_URL }}/netku/proxy:latest
+            ${{ vars.REGISTRY_URL }}/netku/netku-proxy:latest
 
   deploy:
     name: Deploy
@@ -65,6 +65,6 @@ jobs:
 
             sops -d k8s/encoded-secrets.yaml > k8s/temp-secrets.yaml && \
             helm upgrade --install netku-proxy-prod -f k8s/values-prod.yaml \
-            --set events.enabled=false --set container.tag=${{ github.sha }} --namespace netku-prod k8s \
+            --set events.enabled=false --set container.tag=latest --namespace netku-prod k8s \
             && rm k8s/temp-secrets.yaml
           EOF
