@@ -11,17 +11,19 @@ from app.infra.grpc.channel import generate_create_channel_context
 
 
 async def get_broker(dsn: str, *, virtualhost: str | None = None):
+    if virtualhost is not None and virtualhost.startswith("/"):
+        virtualhost = "/" + virtualhost
     broker = RabbitBroker(dsn, virtualhost=virtualhost)
     await broker.connect()
     yield broker
-    await broker.close()
+    await broker.stop()
 
 
-async def get_redis(dsn: str):
-    broker = RedisBroker(dsn)
+async def get_redis(dsn: str, *, db: int = 0):
+    broker = RedisBroker(dsn, db=db)
     redis = await broker.connect()
     yield redis
-    await broker.close()
+    await broker.stop()
 
 
 class Container(containers.DeclarativeContainer):
@@ -40,7 +42,7 @@ class Container(containers.DeclarativeContainer):
     async_sessionmaker = providers.Singleton(
         async_sessionmaker[AsyncSession], async_engine
     )
-    redis = providers.Resource(get_redis, config.redis.dsn)
+    redis = providers.Resource(get_redis, config.redis.dsn, db=config.redis.db)
     create_channel_context = providers.Singleton(
         generate_create_channel_context,
         logger,

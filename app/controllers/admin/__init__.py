@@ -1,3 +1,3 @@
-from app.controllers.admin.main import register_admin
+from app.controllers.admin.main import create_admin
 
-__all__ = ["register_admin"]
+__all__ = ["create_admin"]

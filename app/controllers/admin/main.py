@@ -9,22 +9,26 @@ import app.controllers.admin.views as views
 
 
 @inject
-def register_admin(
-    app: FastAPI,
-    *,
+def create_admin(
     username: str,
     password: str,
     engine: AsyncEngine = Provide[Container.async_engine],
+    *,
+    secret: str,
 ):
     authentication_backend = AdminAuthenticationBackend(
-        username=username, password=password
+        secret, username=username, password=password
     )
+    admin_app = FastAPI()
     admin = Admin(
-        app,
+        admin_app,
         engine,
         title="Engine panel",
         authentication_backend=authentication_backend,
+        base_url="/",
     )
 
     admin.add_view(views.EngineView)
     admin.add_view(views.OutboxView)
+
+    return admin_app

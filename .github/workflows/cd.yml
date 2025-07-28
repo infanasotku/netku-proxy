@@ -1,0 +1,70 @@
+name: CD
+on:
+  workflow_dispatch:
+
+jobs:
+  build-or-retag:
+    name: Prepare :latest image
+    runs-on: ubuntu-latest
+    environment: staging-deploy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ vars.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - id: check-image
+        name: Check if SHA image exists (from staging)
+        shell: bash
+        run: |
+          if docker manifest inspect "${{ vars.REGISTRY_URL }}/netku/proxy:${{ github.sha }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Retag and push :latest from :${{ github.sha }}
+        if: steps.check-image.outputs.exists == 'true'
+        run: |
+          docker pull "${{ vars.REGISTRY_URL }}/netku/proxy:${{ github.sha }}"
+          docker tag  "${{ vars.REGISTRY_URL }}/netku/proxy:${{ github.sha }}" "${{ vars.REGISTRY_URL }}/netku/proxy:latest"
+          docker push "${{ vars.REGISTRY_URL }}/netku/proxy:latest"
+
+      - name: Build and push :latest (staging image not found)
+        if: steps.check-image.outputs.exists == 'false'
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ vars.REGISTRY_URL }}/netku/proxy:latest
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build-or-retag
+    environment: staging-deploy
+
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+      - name: Deploy via SSH
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
+            cd ${{ secrets.PROJECT_DIR }}
+
+            sops -d k8s/encoded-secrets.yaml > k8s/temp-secrets.yaml && \
+            helm upgrade --install netku-proxy-prod -f k8s/values-prod.yaml \
+            --set events.enabled=false --set container.tag=${{ github.sha }} --namespace netku-prod k8s \
+            && rm k8s/temp-secrets.yaml
+          EOF

@@ -1,0 +1,12 @@
+environment: staging
+container:
+  tag: staging
+
+config:
+  POSTGRES__DB_NAME: netku_debug
+  REDIS__DB: "1"
+
+# --- API ---
+api:
+  ingress:
+    host: test.proxy.infanasotku.com

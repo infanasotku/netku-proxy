@@ -1,0 +1,14 @@
+{{- if .Values.api.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.api.container.name }}-{{ .Values.environment }}-service
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.api.container.name }}
+  ports:
+    - port: {{ .Values.api.container.port }}
+      protocol: TCP
+      targetPort: {{ .Values.api.container.port }}
+{{- end }}

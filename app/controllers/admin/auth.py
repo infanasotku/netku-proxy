@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from fastapi import Request
 from sqladmin.authentication import AuthenticationBackend
 
@@ -7,8 +5,8 @@ from sqladmin.authentication import AuthenticationBackend
 class AdminAuthenticationBackend(AuthenticationBackend):
     """Authentication backend for admin panel."""
 
-    def __init__(self, *, username: str, password: str):
-        super().__init__(str(uuid4()))
+    def __init__(self, secret: str, *, username: str, password: str):
+        super().__init__(secret)
         self.username = username
         self.password = password
 

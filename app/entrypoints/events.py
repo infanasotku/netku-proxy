@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+from faststream.asgi import make_ping_asgi
 from faststream import FastStream
 from faststream.redis import RedisBroker
 from dependency_injector import providers
@@ -50,7 +51,10 @@ def create_app():
         title="Proxy events",
         version="",
         identifier="urn:events",
-    ).as_asgi(asyncapi_path=None)
+    ).as_asgi(
+        asyncapi_path=None,
+        asgi_routes=[("/healthz", make_ping_asgi(engine_broker, timeout=5.0))],
+    )
     app.__dict__["container"] = container
 
     return app
