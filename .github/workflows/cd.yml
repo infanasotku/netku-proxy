@@ -105,6 +105,7 @@ jobs:
         run: |
           ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
             cd ${{ secrets.PROJECT_DIR }}
+            git pull
 
             sops -d k8s/encoded-secrets.yaml > k8s/temp-secrets.yaml && \
             helm upgrade --install netku-proxy-prod -f k8s/values-prod.yaml \
