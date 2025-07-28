@@ -42,14 +42,14 @@ spec:
           livenessProbe:
             httpGet:
               path: /healthz
-              port: 5100
+              port: {{ .Values.api.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
 
           readinessProbe:
             httpGet:
               path: /healthz
-              port: 5100
+              port: {{ .Values.api.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
 
