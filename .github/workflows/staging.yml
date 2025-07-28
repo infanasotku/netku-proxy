@@ -2,7 +2,7 @@ name: Staging
 on:
   push:
     branches:
-      - test
+      - main
 
 jobs:
   build-and-push:
@@ -24,7 +24,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: docker/proxy.Dockerfile
+          file: Dockerfile
           push: true
           tags: |
             ${{ vars.REGISTRY_URL }}/netku/proxy:${{ github.sha }}
