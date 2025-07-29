@@ -26,6 +26,10 @@ class EngineView(ModelView, model=models.Engine):
 
     form_columns = [models.Engine.uuid]
 
+    column_sortable_list = [
+        models.Engine.created,
+    ]
+
     async def update_model(
         self,
         request,
@@ -64,4 +68,9 @@ class OutboxView(ModelView, model=models.OutboxRecord):
         models.OutboxRecord.published,
         models.OutboxRecord.published_at,
         models.OutboxRecord.body,
+    ]
+
+    column_sortable_list = [
+        models.OutboxRecord.created_at,
+        models.OutboxRecord.published_at,
     ]
