@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from app.contracts.clients.engine import EngineManager
+from app.infra.grpc.engine import GRPCEngineManager
 from app.services.exceptions.engine import EngineDeadError, EngineNotExistError
 
 from app.infra.database.uow import PostgresEngineUnitOfWork
@@ -21,7 +21,7 @@ class EngineService:
     - Collect domain events into the outbox with `uow.collect`.
     """
 
-    def __init__(self, uow: PostgresEngineUnitOfWork, manager: EngineManager):
+    def __init__(self, uow: PostgresEngineUnitOfWork, manager: GRPCEngineManager):
         self._uow = uow
         self._manager = manager
 
