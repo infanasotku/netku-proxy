@@ -2,6 +2,7 @@ from uuid import NAMESPACE_URL, uuid5
 import json
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy import select
 
 from app.infra.database.repositories.base import PostgresRepository
 from app.domains.event import DomainEvent
@@ -52,3 +53,27 @@ class PostgresOutboxRepository(PostgresRepository):
                 .on_conflict_do_nothing(index_elements=["id"])
             )
             await self._session.execute(stmt)
+
+    async def claim_batch(self, batch: int) -> list[DomainEvent]:
+        """
+        Claims a batch of unpublished outbox records for processing.
+        This method selects up to `batch` unpublished outbox records from the database,
+        locking them for update and skipping any that are already locked by other transactions.
+        It then returns a list of `DomainEvent` instances created from the record bodies.
+
+        Args:
+            batch (int): The maximum number of outbox records to claim.
+        Returns:
+            A list of domain events parsed from the claimed outbox records.
+        """
+
+        stmt = (
+            select(OutboxRecord)
+            .where(OutboxRecord.published == False)  # noqa: E712
+            .with_for_update(skip_locked=True)
+            .limit(batch)
+        )
+
+        rows = await self._session.scalars(stmt)
+
+        return [DomainEvent.from_dict(row.body) for row in rows]
