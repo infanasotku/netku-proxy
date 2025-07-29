@@ -4,7 +4,7 @@ from sqladmin import ModelView
 from dependency_injector.wiring import Provide
 
 
-from app.contracts.services.engine import EngineService
+from app.services.engine import EngineService
 from app.infra.database import models
 from app.container import Container
 

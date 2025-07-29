@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from faststream.rabbit import RabbitBroker
 from faststream.redis import RedisBroker
 
-from app.services.engine import EngineServiceImpl
+from app.services.engine import EngineService
 from app.infra.logging import logger
 from app.infra.database.uow import PostgresEngineUnitOfWork
 from app.infra.grpc.engine import create_grpc_manager
@@ -58,4 +58,4 @@ class Container(containers.DeclarativeContainer):
 
     uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)
 
-    engine_service = providers.Singleton(EngineServiceImpl, uow, engine_manager)
+    engine_service = providers.Singleton(EngineService, uow, engine_manager)

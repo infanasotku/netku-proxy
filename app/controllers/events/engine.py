@@ -22,7 +22,8 @@ from app.infra.redis.streams import (
     PAUSE,
     MAX_RETRY,
 )
-from app.contracts.services.engine import EngineNotExistError, EngineService
+from app.services.engine import EngineService
+from app.services.exceptions.engine import EngineNotExistError
 from app.schemas.engine import EngineCmd
 from app.container import Container
 
