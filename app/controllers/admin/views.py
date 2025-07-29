@@ -4,7 +4,7 @@ from sqladmin import ModelView
 from dependency_injector.wiring import Provide
 
 
-from app.contracts.services.engine import EngineService
+from app.services.engine import EngineService
 from app.infra.database import models
 from app.container import Container
 
@@ -25,6 +25,10 @@ class EngineView(ModelView, model=models.Engine):
     ]
 
     form_columns = [models.Engine.uuid]
+
+    column_sortable_list = [
+        models.Engine.created,
+    ]
 
     async def update_model(
         self,
@@ -64,4 +68,9 @@ class OutboxView(ModelView, model=models.OutboxRecord):
         models.OutboxRecord.published,
         models.OutboxRecord.published_at,
         models.OutboxRecord.body,
+    ]
+
+    column_sortable_list = [
+        models.OutboxRecord.created_at,
+        models.OutboxRecord.published_at,
     ]
