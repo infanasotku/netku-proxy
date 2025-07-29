@@ -4,8 +4,9 @@ from faststream.rabbit import RabbitBroker
 from faststream.redis import RedisBroker
 
 from app.services.engine import EngineService
+from app.services.outbox import OutboxService
 from app.infra.logging import logger
-from app.infra.database.uow import PostgresEngineUnitOfWork
+from app.infra.database.uow import PostgresEngineUnitOfWork, PostgresOutboxUnitOfWork
 from app.infra.grpc.engine import create_grpc_manager
 from app.infra.grpc.channel import generate_create_channel_context
 
@@ -56,6 +57,8 @@ class Container(containers.DeclarativeContainer):
 
     engine_manager = providers.Resource(create_grpc_manager, create_channel_context)
 
-    uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)
+    engine_uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)
+    outbox_uow = providers.Factory(PostgresOutboxUnitOfWork, async_sessionmaker)
 
-    engine_service = providers.Singleton(EngineService, uow, engine_manager)
+    engine_service = providers.Singleton(EngineService, engine_uow, engine_manager)
+    outbox_service = providers.Singleton(OutboxService, outbox_uow)

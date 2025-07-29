@@ -112,3 +112,29 @@ class PostgresEngineUnitOfWork(TransactionBoundary, DomainEventsBuffer):
     @property
     def engines(self):
         return self._engine
+
+
+class PostgresOutboxUnitOfWork(TransactionBoundary):
+    """
+    Thin transactional boundary used by the outbox replayer/publisher.
+
+    It implements only `TransactionBoundary` — no domain-event buffering.
+    """
+
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+        super().__init__()
+        self._session_factory = session_factory
+
+    @property
+    def outbox(self):
+        return self._outbox
+
+    @asynccontextmanager
+    async def begin(self, *, caused_by: str | None = None):
+        session = self._session_factory()
+        try:
+            async with session.begin():
+                self._outbox = PostgresOutboxRepository(session)
+                yield self
+        finally:
+            await session.close()

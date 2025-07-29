@@ -2,11 +2,19 @@ import asyncio
 from logging import Logger
 from contextlib import asynccontextmanager
 
+from dependency_injector.wiring import inject, Provide
+
+from app.services.outbox import OutboxService
+from app.container import Container
+
 
 @asynccontextmanager
-async def start_outbox_relay(logger: Logger):
+@inject
+async def start_outbox_relay(
+    logger: Logger, outbox_service: OutboxService = Provide[Container.engine_service]
+):
     async def _loop():
-        pass
+        await outbox_service.run_forever()
 
     async def _wrap():
         try:
