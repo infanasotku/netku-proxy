@@ -1,14 +1,66 @@
+from collections.abc import Iterable
 from contextlib import asynccontextmanager
+from typing import Any, Protocol, AsyncContextManager
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
-from app.contracts.uow import EngineUnitOfWork
 from app.domains.event import DomainEvent
 from app.infra.database.repositories.engine import PostgresEngineRepository
 from app.infra.database.repositories.outbox import PostgresOutboxRepository
 
 
-class PostgresEngineUnitOfWork(EngineUnitOfWork):
+class TransactionBoundary(Protocol):
+    """
+    **Transaction Boundary** protocol.
+
+    Defines the minimal API to demarcate a database transaction.
+
+    Responsibilities
+    ----------------
+    - Provide `begin()` yielding an async context manager that encloses a *single* database transaction.
+    - Ensure that all work inside the context either **commits** or **rolls back** together.
+    - Accept an optional `caused_by` correlation key so callers can pass idempotency context (e.g. inbound message id) — the implementation may propagate it to outbox/internals to keep keys stable.
+
+    Notes
+    -----
+    - Keep transactions short — do not perform network I/O while the transaction is open.
+    - This protocol does **not** prescribe event buffering; that is the role of `DomainEventsBuffer`.
+    """
+
+    def begin(self, *, caused_by: str | None = None) -> AsyncContextManager[Any]: ...
+
+
+class DomainEventsBuffer(Protocol):
+    """
+    **Domain Events Buffer** protocol.
+
+    A tiny interface for collecting `DomainEvent` instances during a use-case.
+    Implementations persist the collected events into the **outbox** table *right before commit* of the surrounding transaction (Transactional Outbox).
+
+    Responsibilities
+    ----------------
+    - Provide `collect(events)` to enqueue one or more events.
+    - De-duplicate identical events within the same UoW instance (recommended).
+
+    Notes
+    -----
+    - This protocol does **not** start or commit transactions — pair it with `TransactionBoundary` in concrete UoW implementations.
+    """
+
+    def collect(self, events: Iterable[DomainEvent]) -> None:
+        """Enqueue domain events to be written to the outbox atomically with state changes."""
+
+
+class PostgresEngineUnitOfWork(TransactionBoundary, DomainEventsBuffer):
+    """
+    PostgreSQL implementation of a Unit of Work that combines:
+
+    - `TransactionBoundary` — opens/closes an async SQLAlchemy transaction; and
+    - `DomainEventsBuffer` — buffers domain events and flushes them to the outbox just before commit.
+
+    Also supports idempotency by accepting `caused_by` in `begin()` and passing it to the outbox repository.
+    """
+
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         super().__init__()
         self._session_factory = session_factory

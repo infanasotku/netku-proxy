@@ -3,14 +3,18 @@ from uuid import UUID
 from sqlalchemy import literal_column, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.contracts.repositories.engine import EngineRepository
 from app.infra.database.repositories.base import PostgresRepository
 from app.domains.engine import Engine, Version
 from app.infra.database.models import Engine as EngineModel
 
 
-class PostgresEngineRepository(EngineRepository, PostgresRepository):
+class PostgresEngineRepository(PostgresRepository):
     async def get_for_update(self, engine_id: UUID) -> Engine | None:
+        """
+        Retrieve the **current persistent snapshot** of an `Engine` aggregate
+        and **reserve it for exclusive write-access** for the remainder of the
+        caller’s transactional context.
+        """
         stmt = select(EngineModel).where(EngineModel.id == engine_id).with_for_update()
         row = await self._session.scalar(stmt)
         if row is None:
@@ -26,6 +30,27 @@ class PostgresEngineRepository(EngineRepository, PostgresRepository):
         )
 
     async def save(self, engine) -> bool:
+        """
+        Persist the *current* state of an ``Engine`` aggregate.
+
+        The method **MUST implement an idempotent *upsert***
+        semantics:
+
+        * **Insert** – if the aggregate does not exist yet.
+        * **Update** – if the stored *version* is *older* than
+          `engine.version`.
+          "Older" is defined by the concrete adapter, but **MUST** be a strict,
+          monotonic ordering (e.g. Redis‐stream `(ver_ts, ver_seq)` or a
+          numeric version counter).
+        * **No-op** – if the aggregate is already stored with the *same* or a
+          *newer* version.  In this case the method must **leave the row
+          untouched** and return *False*.
+
+        Returns:
+            bool: `True` if INSERT or UPDATE actually changed the persistent
+            representation `False` otherwise.
+        """
+
         update_dict = dict(
             uuid=engine.uuid,
             status=engine.status,
@@ -52,6 +77,13 @@ class PostgresEngineRepository(EngineRepository, PostgresRepository):
         return bool(row)
 
     async def get(self, engine_id: UUID) -> Engine | None:
+        """
+        Retrieve the current persistent snapshot of an `Engine` aggregate.
+
+        Unlike `get_for_update`, this method does **not** reserve the aggregate
+        for exclusive write access. It is intended for read-only operations and does
+        not participate in locking or transactional isolation.
+        """
         stmt = select(EngineModel).where(EngineModel.id == engine_id)
         row = await self._session.scalar(stmt)
         if row is None:

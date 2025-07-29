@@ -6,13 +6,13 @@ from app.contracts.services.engine import (
     EngineNotExistError,
     EngineDeadError,
 )
-from app.contracts.uow import EngineUnitOfWork
+from app.infra.database.uow import PostgresEngineUnitOfWork
 
 from app.domains.engine import Engine, EngineStatus
 
 
 class EngineServiceImpl(EngineService):
-    def __init__(self, uow: EngineUnitOfWork, manager: EngineManager):
+    def __init__(self, uow: PostgresEngineUnitOfWork, manager: EngineManager):
         self._uow = uow
         self._manager = manager
 
