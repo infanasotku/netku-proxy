@@ -15,8 +15,8 @@ class EngineService:
 
     Responsibilities
     ----------------
-    - Open a transactional :class:`~app.infra.database.uow.PostgresEngineUnitOfWork`.
-    - Apply domain rules (`Engine.remove`, `Engine.update`, …).
+    - Open a transactional `~app.infra.database.uow.PostgresEngineUnitOfWork`.
+    - Apply domain rules (`Engine.remove`, `Engine.update`, ...).
     - Persist changes via repository ports (`uow.engines.save`).
     - Collect domain events into the outbox with `uow.collect`.
     """
@@ -31,9 +31,9 @@ class EngineService:
 
         Behaviour
         ---------
-        - **First call** when the aggregate exists and `version` is newer → state updated and `EngineRemoved` event collected.
-        - **Subsequent retries** with the *same* `version` → *no‑op*.
-        - **Aggregate not found** → raises :class:`~app.services.exceptions.engine.EngineNotExistError`.
+        - **First call** when the aggregate exists and `version` is newer -> state updated and `EngineRemoved` event collected.
+        - **Subsequent retries** with the *same* `version` -> *no‑op*.
+        - **Aggregate not found** -> raises `~app.services.exceptions.engine.EngineNotExistError`.
 
         Parameters
         ----------
@@ -41,7 +41,7 @@ class EngineService:
             Identifier of the engine to remove.
         caused_by : str | None
             Correlation identifier propagated into the outbox.
-        version : Version
+        version : ~app.domains.engine.Version
             Optimistic concurrency token guaranteeing proper ordering.
 
         Raises
@@ -65,10 +65,10 @@ class EngineService:
 
         Decision matrix
         ---------------
-        Aggregate state → Action
-        - **Not present** → *Insert* new `Engine`.
-        - **Present & `version` newer** → *Update* existing aggregate.
-        - **Present & `version` older** → *No‑op* (stale duplicate).
+        Aggregate state -> Action
+        - **Not present** -> *Insert* new `Engine`.
+        - **Present & `version` newer** -> *Update* existing aggregate.
+        - **Present & `version` older** -> *No‑op* (stale duplicate).
 
         Parameters
         ----------
@@ -102,7 +102,7 @@ class EngineService:
         Restart the physics engine **instance**.
 
         This operation does **not** change persistent state; it delegates to
-        :class:`~app.contracts.clients.engine.EngineManager` to perform the actual restart.
+        `~app.contracts.clients.engine.EngineManager` to perform the actual restart.
 
         Parameters
         ----------
