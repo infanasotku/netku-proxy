@@ -9,6 +9,8 @@ from app.infra.logging import logger
 from app.infra.database.uow import PostgresEngineUnitOfWork, PostgresOutboxUnitOfWork
 from app.infra.grpc.engine import create_grpc_manager
 from app.infra.grpc.channel import generate_create_channel_context
+from app.infra.rabbit.publisher import RabbitPublisher
+from app.infra.rabbit import queues
 
 
 async def get_broker(dsn: str, *, virtualhost: str | None = None):
@@ -50,15 +52,21 @@ class Container(containers.DeclarativeContainer):
         with_cert=True,
         root_certificates=config.ssl.root_certificates,
     )
-
-    broker = providers.Resource(
+    rabbit_broker = providers.Resource(
         get_broker, config.rabbit.dsn, virtualhost=config.rabbit_proxy_vhost
     )
 
     engine_manager = providers.Resource(create_grpc_manager, create_channel_context)
+    rabbit_publisher = providers.Singleton(
+        RabbitPublisher, rabbit_broker, queue=queues.proxy_engine_queue
+    )
 
     engine_uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)
     outbox_uow = providers.Factory(PostgresOutboxUnitOfWork, async_sessionmaker)
 
     engine_service = providers.Singleton(EngineService, engine_uow, engine_manager)
-    outbox_service = providers.Singleton(OutboxService, outbox_uow)
+    outbox_service = providers.Singleton(
+        OutboxService,
+        outbox_uow,
+        rabbit_publisher,
+    )
