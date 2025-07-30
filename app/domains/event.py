@@ -65,3 +65,7 @@ class DomainEvent:
             obj, "occurred_at", datetime.fromisoformat(data["occurred_at"])
         )
         return obj
+
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__

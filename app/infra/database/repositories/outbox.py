@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.infra.database.repositories.base import PostgresRepository
 from app.domains.event import DomainEvent
 from app.infra.database.models import OutboxRecord
+from app.schemas.outbox import OutboxDTO
 
 
 class PostgresOutboxRepository(PostgresRepository):
@@ -54,7 +55,7 @@ class PostgresOutboxRepository(PostgresRepository):
             )
             await self._session.execute(stmt)
 
-    async def claim_batch(self, batch: int) -> list[DomainEvent]:
+    async def claim_batch(self, batch: int) -> list[OutboxDTO]:
         """
         Claims a batch of unpublished outbox records for processing.
         This method selects up to `batch` unpublished outbox records from the database,
@@ -63,8 +64,6 @@ class PostgresOutboxRepository(PostgresRepository):
 
         Args:
             batch (int): The maximum number of outbox records to claim.
-        Returns:
-            A list of domain events parsed from the claimed outbox records.
         """
 
         stmt = (
@@ -76,4 +75,11 @@ class PostgresOutboxRepository(PostgresRepository):
 
         rows = await self._session.scalars(stmt)
 
-        return [DomainEvent.from_dict(row.body) for row in rows]
+        return [
+            OutboxDTO(
+                event=DomainEvent.from_dict(row.body),
+                caused_by=row.caused_by,
+                id=row.id,
+            )
+            for row in rows
+        ]

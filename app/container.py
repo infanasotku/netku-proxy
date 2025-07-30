@@ -16,7 +16,7 @@ from app.infra.rabbit import queues
 async def get_broker(dsn: str, *, virtualhost: str | None = None):
     if virtualhost is not None and virtualhost.startswith("/"):
         virtualhost = "/" + virtualhost
-    broker = RabbitBroker(dsn, virtualhost=virtualhost)
+    broker = RabbitBroker(dsn, virtualhost=virtualhost, publisher_confirms=True)
     await broker.connect()
     yield broker
     await broker.stop()
