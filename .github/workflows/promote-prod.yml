@@ -64,7 +64,8 @@ jobs:
     needs: [build-or-retag, load-pr]
     environment: staging-deploy
     if: |
-      always() && (needs.build-or-retag.result == 'success' || needs.build-or-retag.result == 'skipped')
+      always() && (needs.build-or-retag.result == 'success' || needs.build-or-retag.result == 'skipped') &&
+      contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'redeploy')
 
     steps:
       - name: Set up SSH
