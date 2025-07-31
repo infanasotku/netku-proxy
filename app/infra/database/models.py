@@ -64,6 +64,7 @@ class OutboxRecord(Base):
         published (bool): Set to TRUE by the relay after a successful broker publish.
         created_at (datetime): Timestamp when the outbox record was created.
         published_at (datetime | None): Timestamp when the record was published, or None if unpublished.
+        attempts (int): Number of publish attempts for this outbox record.
 
     Table Indexes
     -----------------
@@ -86,6 +87,10 @@ class OutboxRecord(Base):
     published: Mapped[bool] = mapped_column(
         nullable=False,
         default=False,
+    )
+    attempts: Mapped[int] = mapped_column(
+        nullable=False,
+        default=0,
     )
 
     created_at: Mapped[datetime] = mapped_column(
