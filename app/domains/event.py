@@ -1,5 +1,5 @@
 from dataclasses import dataclass, fields, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Type, ClassVar, cast, Self
 from uuid import UUID, uuid5, NAMESPACE_URL
 
@@ -11,7 +11,9 @@ class DomainEvent:
 
     # Internal fields
     id: UUID = field(init=False)  # Deterministic field
-    occurred_at: datetime = field(default_factory=datetime.now, init=False)
+    occurred_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc), init=False
+    )
 
     _registry: ClassVar[dict[str, Type["DomainEvent"]]] = {}
 
@@ -65,3 +67,7 @@ class DomainEvent:
             obj, "occurred_at", datetime.fromisoformat(data["occurred_at"])
         )
         return obj
+
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__

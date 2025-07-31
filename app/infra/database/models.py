@@ -1,5 +1,5 @@
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, Column, Index, UniqueConstraint, Enum, DateTime
@@ -64,6 +64,7 @@ class OutboxRecord(Base):
         published (bool): Set to TRUE by the relay after a successful broker publish.
         created_at (datetime): Timestamp when the outbox record was created.
         published_at (datetime | None): Timestamp when the record was published, or None if unpublished.
+        attempts (int): Number of publish attempts for this outbox record.
 
     Table Indexes
     -----------------
@@ -87,11 +88,15 @@ class OutboxRecord(Base):
         nullable=False,
         default=False,
     )
+    attempts: Mapped[int] = mapped_column(
+        nullable=False,
+        default=0,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.now,
+        default=lambda: datetime.now(timezone.utc),
     )
     published_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

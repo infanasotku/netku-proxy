@@ -1,11 +1,14 @@
-from uuid import NAMESPACE_URL, uuid5
+from datetime import datetime, timezone
+from uuid import NAMESPACE_URL, UUID, uuid5
 import json
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy import and_, select, update
 
 from app.infra.database.repositories.base import PostgresRepository
 from app.domains.event import DomainEvent
 from app.infra.database.models import OutboxRecord
+from app.schemas.outbox import OutboxDTO
 
 
 class PostgresOutboxRepository(PostgresRepository):
@@ -52,3 +55,68 @@ class PostgresOutboxRepository(PostgresRepository):
                 .on_conflict_do_nothing(index_elements=["id"])
             )
             await self._session.execute(stmt)
+
+    async def claim_batch(self, batch: int, *, max_attempts: int) -> list[OutboxDTO]:
+        """
+        Claims a batch of unpublished outbox records for processing.
+        This method selects up to `batch` unpublished outbox records from the database,
+        locking them for update and skipping any that are already locked by other transactions.
+        It then returns a list of `DomainEvent` instances created from the record bodies.
+
+        Args:
+            batch (int): The maximum number of outbox records to claim.
+            max_attempts (int): The maximum number of publish attempts for each record.
+        """
+
+        stmt = (
+            select(OutboxRecord)
+            .where(
+                and_(
+                    OutboxRecord.published == False,  # noqa: E712
+                    OutboxRecord.attempts < max_attempts,
+                )
+            )
+            .with_for_update(skip_locked=True)
+            .limit(batch)
+        )
+
+        rows = await self._session.scalars(stmt)
+
+        return [
+            OutboxDTO(
+                event=DomainEvent.from_dict(row.body),
+                caused_by=row.caused_by,
+                id=row.id,
+                attempts=row.attempts,
+            )
+            for row in rows
+        ]
+
+    async def mark_sent(self, outbox_id: UUID) -> None:
+        """
+        Marks the specified outbox record as sent.
+        Updates the `published` status to True, sets the `published_at` timestamp to the current time,
+        and increments the `attempts` counter for the outbox record identified by `outbox_id`.
+        """
+        stmt = (
+            update(OutboxRecord)
+            .where(OutboxRecord.id == outbox_id)
+            .values(
+                published=True,
+                published_at=datetime.now(timezone.utc),
+                attempts=OutboxRecord.attempts + 1,
+            )
+        )
+        await self._session.execute(stmt)
+
+    async def mark_failed(self, outbox_id: UUID) -> None:
+        """
+        Marks the specified outbox record as failed.
+        Increments the `attempts` counter for the outbox record identified by `outbox_id`.
+        """
+        stmt = (
+            update(OutboxRecord)
+            .where(OutboxRecord.id == outbox_id)
+            .values(attempts=OutboxRecord.attempts + 1)
+        )
+        await self._session.execute(stmt)

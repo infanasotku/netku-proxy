@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.events.container.name }}-{{ .Values.environment }}
+  name: {{ .Values.outbox.container.name }}-{{ .Values.environment }}
   annotations:
-    infanasotku.com: "Infanasotku software engineier"
-    version: "{{ .Values.events.version }}"
+    infanasotku.com: "Infanasotku software engineer"
+    version: "{{ .Values.outbox.version }}"
 
 spec:
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
-      app: {{ .Values.events.container.name }}
+      app: {{ .Values.outbox.container.name }}
 
   template:
     metadata:
       labels:
-        app: {{ .Values.events.container.name }}
+        app: {{ .Values.outbox.container.name }}
         environment: {{ .Values.environment }}
 
     spec:
@@ -24,14 +24,14 @@ spec:
         runAsUser: 1000
 
       containers:
-        - name: {{ .Values.events.container.name }}
+        - name: {{ .Values.outbox.container.name }}
           image: {{ .Values.container.image }}:{{ .Values.container.tag }}
           imagePullPolicy: Always
 
           command: ["uvicorn"]
-          args: {{ .Values.events.container.args | toJson }}
+          args: {{ .Values.outbox.container.args | toJson }}
           ports:
-            - containerPort: {{ .Values.events.container.port }}
+            - containerPort: {{ .Values.outbox.container.port }}
 
           envFrom:
             - configMapRef:
@@ -42,14 +42,14 @@ spec:
           livenessProbe:
             httpGet:
               path: /healthz
-              port: {{.Values.events.container.port }}
+              port: {{.Values.outbox.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
 
           readinessProbe:
             httpGet:
               path: /healthz
-              port: {{.Values.events.container.port }}
+              port: {{.Values.outbox.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
 

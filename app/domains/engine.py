@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from app.domains.event import DomainEvent
@@ -22,10 +22,10 @@ class Version:
         return f"{self.ts}-{self.seq}"
 
 
-class EngineStatus(Enum):
-    ACTIVE = 1
-    READY = 2
-    DEAD = 3
+class EngineStatus(StrEnum):
+    ACTIVE = "active"
+    READY = "ready"
+    DEAD = "dead"
 
 
 @dataclass(frozen=True, slots=True)
