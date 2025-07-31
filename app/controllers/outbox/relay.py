@@ -29,7 +29,7 @@ async def start_outbox_relay(logger: Logger, container: Container = Provide[Cont
         try:
             await _loop()
         except Exception:
-            logger.critical("Unhandled error occured in outbox relay:", exc_info=True)
+            logger.critical("Unhandled error occurred in outbox relay:", exc_info=True)
 
     task = asyncio.create_task(_wrap())
 
