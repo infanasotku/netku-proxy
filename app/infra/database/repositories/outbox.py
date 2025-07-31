@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import NAMESPACE_URL, UUID, uuid5
 import json
 

@@ -1,5 +1,5 @@
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, Column, Index, UniqueConstraint, Enum, DateTime
@@ -96,7 +96,7 @@ class OutboxRecord(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.now,
+        default=lambda: datetime.now(timezone.utc),
     )
     published_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
