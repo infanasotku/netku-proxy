@@ -50,3 +50,20 @@ events:
       "--port",
       "5101",
     ]
+
+# --- OUTBOX ---
+outbox:
+  version: "0.1.0"
+  container:
+    name: netku-proxy-outbox
+    port: 5102
+    args:
+      [
+        "app.entrypoints.outbox_relay:app",
+      "--workers",
+      "1",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "5102",
+    ]
