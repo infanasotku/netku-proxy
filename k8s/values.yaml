@@ -11,6 +11,7 @@ config:
   REDIS__DB: "0"
   REDIS__PORT: "6381"
   RABBIT_PROXY_VHOST: "/proxy"
+  RABBIT__USERNAME: "proxy"
 
 # --- API ---
 api:

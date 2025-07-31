@@ -14,7 +14,7 @@ data:
   POSTGRES__SQL_SCHEMA: proxy
 
   # RabbitMQ
-  RABBIT__USERNAME: proxy
+  RABBIT__USERNAME: {{ .Values.config.RABBIT__USERNAME }}
   RABBIT__HOST: rabbitmq.infanasotku.com.
   RABBIT__PORT: "5670"
   RABBIT_SCOPE_VHOST: /client
