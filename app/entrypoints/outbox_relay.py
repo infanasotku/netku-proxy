@@ -31,8 +31,7 @@ def create_app():
     container.config.from_pydantic(settings)
     container.wire(
         modules=[
-            "app.controllers.admin.main",
-            "app.controllers.admin.views",
+            "app.controllers.outbox.relay",
         ]
     )
 
