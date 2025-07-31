@@ -1,21 +1,17 @@
 import asyncio
 from logging import Logger
 from contextlib import asynccontextmanager
-from typing import Awaitable, cast
 
 from dependency_injector.wiring import inject, Provide
 
 from app.container import Container
-from app.services.outbox import OutboxService
 
 
 @asynccontextmanager
 @inject
 async def start_outbox_relay(logger: Logger, container: Container = Provide[Container]):
     async def _loop():
-        outbox_service = await cast(
-            Awaitable[OutboxService], container.outbox_service()
-        )
+        outbox_service = await container.outbox_service()
         while True:
             result = await outbox_service.process_batch()
             for r in result:
