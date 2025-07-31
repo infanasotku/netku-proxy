@@ -64,8 +64,8 @@ class Container(containers.DeclarativeContainer):
     engine_uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)
     outbox_uow = providers.Factory(PostgresOutboxUnitOfWork, async_sessionmaker)
 
-    engine_service = providers.Singleton(EngineService, engine_uow, engine_manager)
-    outbox_service = providers.Singleton(
+    engine_service = providers.Factory(EngineService, engine_uow, engine_manager)
+    outbox_service = providers.Factory(
         OutboxService,
         outbox_uow,
         rabbit_publisher,

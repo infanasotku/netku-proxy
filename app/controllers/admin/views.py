@@ -67,6 +67,7 @@ class OutboxView(ModelView, model=models.OutboxRecord):
         models.OutboxRecord.created_at,
         models.OutboxRecord.published,
         models.OutboxRecord.published_at,
+        models.OutboxRecord.attempts,
         models.OutboxRecord.body,
     ]
 
