@@ -37,7 +37,7 @@ class OutboxService:
                 id=record.id,
                 success=True,
                 error=None,
-                attempts=1,
+                attempts=record.attempts + 1,
             )
 
     async def process_batch(self) -> list[OutboxPublishResult]:
