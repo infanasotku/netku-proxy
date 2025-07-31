@@ -103,7 +103,7 @@ class PostgresOutboxRepository(PostgresRepository):
             .where(OutboxRecord.id == outbox_id)
             .values(
                 published=True,
-                published_at=datetime.now(),
+                published_at=datetime.now(timezone.utc),
                 attempts=OutboxRecord.attempts + 1,
             )
         )
