@@ -80,7 +80,7 @@ jobs:
             cd ${{ secrets.PROJECT_DIR }}
             git pull
 
-            sops -d k8s/encoded-secrets.yaml > k8s/temp-secrets.yaml && \
+            sops -d k8s/secrets-prod.yaml > k8s/temp-secrets.yaml && \
             helm upgrade --install netku-proxy-prod -f k8s/values-prod.yaml \
             --set container.tag=latest --namespace netku-prod k8s \
             && rm k8s/temp-secrets.yaml
