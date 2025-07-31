@@ -18,7 +18,8 @@ jobs:
     needs: load-pr
     if: |
       contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'events') ||
-      contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'api')
+      contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'api') ||
+      contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'outbox')
 
     steps:
       - uses: actions/checkout@v4
