@@ -18,7 +18,7 @@ data:
   RABBIT__HOST: rabbitmq.infanasotku.com.
   RABBIT__PORT: "5670"
   RABBIT_SCOPE_VHOST: /client
-  RABBIT_PROXY_VHOST: /proxy
+  RABBIT_PROXY_VHOST: {{ .Values.config.RABBIT_PROXY_VHOST }}
 
   # Redis
   REDIS__HOST: redis.infanasotku.com.

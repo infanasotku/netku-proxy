@@ -4,6 +4,7 @@ metadata:
   name: {{ .Values.events.container.name }}-{{ .Values.environment }}
   annotations:
     infanasotku.com: "Infanasotku software engineier"
+    version: "{{ .Values.events.version }}"
 
 spec:
   replicas: {{ .Values.replicas }}

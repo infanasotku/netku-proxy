@@ -10,9 +10,11 @@ config:
   POSTGRES__DB_NAME: netku
   REDIS__DB: "0"
   REDIS__PORT: "6381"
+  RABBIT_PROXY_VHOST: "/proxy"
 
 # --- API ---
 api:
+  version: "0.1.1"
   container:
     name: netku-proxy-api
     port: 5100
@@ -34,6 +36,7 @@ api:
 
 # --- EVENTS ---
 events:
+  version: "0.1.1"
   container:
     name: netku-proxy-events
     port: 5101
