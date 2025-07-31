@@ -41,6 +41,7 @@ jobs:
           push: true
           tags: |
             ${{ vars.REGISTRY_URL }}/netku/netku-proxy:${{ github.sha }}
+            ${{ vars.REGISTRY_URL }}/netku/netku-proxy:staging
 
   deploy:
     name: Deploy
@@ -67,6 +68,6 @@ jobs:
 
             sops -d k8s/encoded-secrets.yaml > k8s/temp-secrets.yaml && \
             helm upgrade --install netku-proxy-staging -f k8s/values-staging.yaml \
-            --set container.tag=${{ github.sha }} --namespace netku-staging k8s \
+            --set container.tag=staging --namespace netku-staging k8s \
             && rm k8s/temp-secrets.yaml
           EOF
