@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ .Values.outbox.container.name }}-{{ .Values.environment }}
   annotations:
-    infanasotku.com: "Infanasotku software engineier"
+    infanasotku.com: "Infanasotku software engineer"
     version: "{{ .Values.outbox.version }}"
 
 spec:
