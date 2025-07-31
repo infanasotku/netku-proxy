@@ -1,10 +1,12 @@
 from logging import Logger
 from uuid import UUID
 from sqladmin import ModelView
+from sqladmin.filters import StaticValuesFilter, BooleanFilter
 from dependency_injector.wiring import Provide
 
 
 from app.services.engine import EngineService
+from app.domains.engine import EngineStatus
 from app.infra.database import models
 from app.container import Container
 
@@ -28,6 +30,17 @@ class EngineView(ModelView, model=models.Engine):
 
     column_sortable_list = [
         models.Engine.created,
+    ]
+
+    column_filters = [
+        StaticValuesFilter(
+            models.Engine.status,
+            [
+                ("DEAD", EngineStatus.DEAD),
+                ("ACTIVE", EngineStatus.ACTIVE),
+                ("READY", EngineStatus.READY),
+            ],
+        )
     ]
 
     async def update_model(
@@ -75,3 +88,5 @@ class OutboxView(ModelView, model=models.OutboxRecord):
         models.OutboxRecord.created_at,
         models.OutboxRecord.published_at,
     ]
+
+    column_filters = [BooleanFilter(models.OutboxRecord.published)]
