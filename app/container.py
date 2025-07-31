@@ -1,3 +1,4 @@
+from typing import Awaitable
 from dependency_injector import providers, containers
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from faststream.rabbit import RabbitBroker
@@ -52,8 +53,10 @@ class Container(containers.DeclarativeContainer):
         with_cert=True,
         root_certificates=config.ssl.root_certificates,
     )
-    rabbit_broker = providers.Resource(
-        get_broker, config.rabbit.dsn, virtualhost=config.rabbit_proxy_vhost
+    rabbit_broker = providers.Resource[Awaitable[RabbitBroker]](
+        get_broker,  # type: ignore
+        config.rabbit.dsn,
+        virtualhost=config.rabbit_proxy_vhost,
     )
 
     engine_manager = providers.Resource(create_grpc_manager, create_channel_context)

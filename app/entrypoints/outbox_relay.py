@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.infra.config import settings
 from app.infra.logging import logger
+from app.infra.rabbit import queues, exchanges
 from app.container import Container
 
 from app.controllers.outbox import relay
@@ -17,6 +18,12 @@ def create_lifespan(container: Container):
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         await _maybe_future(container.init_resources())
+
+        broker = await container.rabbit_broker()
+        exc = await broker.declare_exchange(exchanges.dlx_exchange)
+        dlq = await broker.declare_queue(queues.dead_letter_queue)
+        await dlq.bind(exc, routing_key=queues.dead_letter_queue.routing_key)
+        await broker.declare_queue(queues.proxy_engine_queue)
 
         async with relay.start_outbox_relay(logger):
             yield
