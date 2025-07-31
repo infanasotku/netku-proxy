@@ -39,6 +39,6 @@ async def start_outbox_relay(logger: Logger, container: Container = Provide[Cont
         task.cancel()
 
         try:
-            await task  # Forward erros from task
+            await task  # Forward errors from task
         except asyncio.CancelledError:
             pass
