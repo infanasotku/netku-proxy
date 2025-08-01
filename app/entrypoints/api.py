@@ -9,10 +9,14 @@ from app.container import Container
 from app.controllers.admin import create_admin
 
 
-def traces_sampler(ctx):
-    scope = ctx.get("asgi_scope") or {}
-    path = scope.get("path") or ""
-    if path.startswith("/admin") and not path.startswith("/admin/engine/edit"):
+def traces_sampler(ctx: dict):
+    scope: dict = ctx["asgi_scope"]
+    path: str = scope["path"]
+    method: str = scope["method"]
+
+    if path.startswith("/admin") and not (
+        path.startswith("/admin/engine/edit") and method == "POST"
+    ):
         return 0.0
 
     return 1.0
