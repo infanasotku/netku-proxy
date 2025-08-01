@@ -18,6 +18,10 @@ async def create_channel(
     root_certificates: str | Sequence[str] | None = None,
 ) -> AsyncIterator[Channel]:
     addr = f"{host}:{port}"
+    if host.endswith("."):
+        normalized_host = host.rstrip(".")
+    else:
+        normalized_host = host
 
     if root_certificates is None:
         root_certificates = [certifi.where()]
@@ -27,7 +31,13 @@ async def create_channel(
     if with_cert:
         cert = b"".join(Path(path).read_bytes() for path in root_certificates)
         creds = grpc.ssl_channel_credentials(cert)
-        channel = secure_channel(addr, creds)
+        options: list[tuple[str, str]] = []
+
+        if host.endswith("."):
+            options.append(("grpc.ssl_target_name_override", normalized_host))
+            options.append(("grpc.default_authority", normalized_host))
+
+        channel = secure_channel(addr, creds, options=options)
     else:
         channel = insecure_channel(addr)
         if logger is not None:
