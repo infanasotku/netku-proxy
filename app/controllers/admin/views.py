@@ -1,9 +1,10 @@
 from logging import Logger
 from uuid import UUID
+
 from sqladmin import ModelView
 from sqladmin.filters import StaticValuesFilter, BooleanFilter
 from dependency_injector.wiring import Provide
-
+from sentry_sdk import get_current_scope
 
 from app.services.engine import EngineService
 from app.domains.engine import EngineStatus
@@ -51,6 +52,11 @@ class EngineView(ModelView, model=models.Engine):
         engine_service: EngineService = Provide[Container.engine_service],
         logger: Logger = Provide[Container.logger],
     ):
+        scope = get_current_scope()
+        path_format, _, _ = request.scope["path"].rpartition("/")
+        path_format += "/{engine_id}"
+        scope.set_transaction_name(f"{request.method} {path_format}")
+
         uuid = UUID(data["uuid"])
         id = UUID(pk)
 
