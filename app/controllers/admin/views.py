@@ -4,7 +4,7 @@ from uuid import UUID
 from sqladmin import ModelView
 from sqladmin.filters import StaticValuesFilter, BooleanFilter
 from dependency_injector.wiring import Provide
-from sentry_sdk import get_current_scope
+from sentry_sdk import get_current_scope, start_span
 
 from app.services.engine import EngineService
 from app.domains.engine import EngineStatus
@@ -60,14 +60,17 @@ class EngineView(ModelView, model=models.Engine):
         uuid = UUID(data["uuid"])
         id = UUID(pk)
 
-        try:
-            await engine_service.restart(id, uuid=uuid)
-            logger.info(f"Engine with ID [{id}] restarted.")
-        except Exception:
-            logger.error(
-                f"Error occured while restarting engine with ID {id}:",
-            )
-            raise
+        with start_span(op="task", description="Restarting engine") as span:
+            span.set_tag("engine_id", id.hex)
+
+            try:
+                await engine_service.restart(id, uuid=uuid)
+                logger.info(f"Engine with ID [{id}] restarted.")
+            except Exception:
+                logger.error(
+                    f"Error occured while restarting engine with ID {id}:",
+                )
+                raise
 
         return models.Engine()
 
