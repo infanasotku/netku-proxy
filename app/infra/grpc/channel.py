@@ -33,7 +33,7 @@ async def create_channel(
         creds = grpc.ssl_channel_credentials(cert)
         options: list[tuple[str, str]] = []
 
-        if host.endswith('.'):
+        if host.endswith("."):
             options.append(("grpc.ssl_target_name_override", normalized_host))
             options.append(("grpc.default_authority", normalized_host))
 
