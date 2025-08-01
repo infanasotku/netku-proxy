@@ -4,7 +4,6 @@ metadata:
   name: {{ .Values.outbox.container.name }}-{{ .Values.environment }}
   annotations:
     infanasotku.com: "Infanasotku software engineer"
-    version: "{{ .Values.outbox.version }}"
 
 spec:
   replicas: {{ .Values.replicas }}
@@ -17,6 +16,7 @@ spec:
       labels:
         app: {{ .Values.outbox.container.name }}
         environment: {{ .Values.environment }}
+        version: {{ .Values.outbox.version }}
 
     spec:
       securityContext:
