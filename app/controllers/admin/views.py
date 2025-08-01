@@ -60,7 +60,7 @@ class EngineView(ModelView, model=models.Engine):
         uuid = UUID(data["uuid"])
         id = UUID(pk)
 
-        with start_span(op="task", description="Restarting engine") as span:
+        with start_span(op="task", description="Restart engine") as span:
             span.set_tag("engine_id", id.hex)
 
             try:
