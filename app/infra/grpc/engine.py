@@ -65,9 +65,7 @@ class GRPCEngineManager:
         """
         channel = await self._get_channel(addr)
 
-        with start_span(
-            op="grpc.client", description="Restart engine via gRPC"
-        ) as span:
+        with start_span(op="grpc.client", name="Restart engine via gRPC") as span:
             span.set_tag("engine_addr", addr)
 
             stub = XrayStub(channel)
