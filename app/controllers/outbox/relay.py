@@ -19,7 +19,7 @@ async def start_outbox_relay(logger: Logger, container: Container = Provide[Cont
                     logger.error(
                         f"Outbox message with ID {r.id} failed to process, attempts: {r.attempts}, reason: {r.error}."
                     )
-            await asyncio.sleep(200 / 1000)
+            await asyncio.sleep(1.5)
 
     async def _wrap():
         try:
