@@ -4,6 +4,7 @@ import json
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy import and_, select, update
+from sentry_sdk import start_span
 
 from app.infra.database.repositories.base import PostgresRepository
 from app.domains.event import DomainEvent
@@ -37,24 +38,28 @@ class PostgresOutboxRepository(PostgresRepository):
                 primary key; otherwise only `event.id` is used.  This enables
                 *exactly-once* semantics on repeat deliveries.
         """
-        for ev in events:
-            if caused_by:
-                oid = uuid5(NAMESPACE_URL, f"{caused_by}:{ev.id}")
-            else:
-                oid = ev.id
+        with start_span(op="db", name="Store outbox events") as span:
+            span.set_tag("caused_by", caused_by)
+            span.set_tag("events_count", len(events))
 
-            caused_by = caused_by if caused_by is not None else str(oid)
+            for ev in events:
+                if caused_by:
+                    oid = uuid5(NAMESPACE_URL, f"{caused_by}:{ev.id}")
+                else:
+                    oid = ev.id
 
-            stmt = (
-                pg_insert(OutboxRecord)
-                .values(
-                    id=oid,
-                    caused_by=caused_by,
-                    body=json.loads(json.dumps(ev.to_dict(), default=str)),
+                caused_by = caused_by if caused_by is not None else str(oid)
+
+                stmt = (
+                    pg_insert(OutboxRecord)
+                    .values(
+                        id=oid,
+                        caused_by=caused_by,
+                        body=json.loads(json.dumps(ev.to_dict(), default=str)),
+                    )
+                    .on_conflict_do_nothing(index_elements=["id"])
                 )
-                .on_conflict_do_nothing(index_elements=["id"])
-            )
-            await self._session.execute(stmt)
+                await self._session.execute(stmt)
 
     async def claim_batch(self, batch: int, *, max_attempts: int) -> list[OutboxDTO]:
         """
@@ -67,30 +72,34 @@ class PostgresOutboxRepository(PostgresRepository):
             batch (int): The maximum number of outbox records to claim.
             max_attempts (int): The maximum number of publish attempts for each record.
         """
-
-        stmt = (
-            select(OutboxRecord)
-            .where(
-                and_(
-                    OutboxRecord.published == False,  # noqa: E712
-                    OutboxRecord.attempts < max_attempts,
+        with start_span(op="db", name="Claim outbox events") as span:
+            stmt = (
+                select(OutboxRecord)
+                .where(
+                    and_(
+                        OutboxRecord.published == False,  # noqa: E712
+                        OutboxRecord.attempts < max_attempts,
+                    )
                 )
+                .with_for_update(skip_locked=True)
+                .limit(batch)
             )
-            .with_for_update(skip_locked=True)
-            .limit(batch)
-        )
 
-        rows = await self._session.scalars(stmt)
+            rows = await self._session.scalars(stmt)
 
-        return [
-            OutboxDTO(
-                event=DomainEvent.from_dict(row.body),
-                caused_by=row.caused_by,
-                id=row.id,
-                attempts=row.attempts,
-            )
-            for row in rows
-        ]
+            result = [
+                OutboxDTO(
+                    event=DomainEvent.from_dict(row.body),
+                    caused_by=row.caused_by,
+                    id=row.id,
+                    attempts=row.attempts,
+                )
+                for row in rows
+            ]
+
+            span.set_tag("claimed_count", len(result))
+
+            return result
 
     async def mark_sent(self, outbox_id: UUID) -> None:
         """
