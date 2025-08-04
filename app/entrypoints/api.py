@@ -19,6 +19,9 @@ def traces_sampler(ctx: dict):
     ):
         return 0.0
 
+    if "favicon.ico" in path:
+        return 0.0
+
     return 1.0
 
 
