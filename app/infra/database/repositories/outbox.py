@@ -107,25 +107,31 @@ class PostgresOutboxRepository(PostgresRepository):
         Updates the `published` status to True, sets the `published_at` timestamp to the current time,
         and increments the `attempts` counter for the outbox record identified by `outbox_id`.
         """
-        stmt = (
-            update(OutboxRecord)
-            .where(OutboxRecord.id == outbox_id)
-            .values(
-                published=True,
-                published_at=datetime.now(timezone.utc),
-                attempts=OutboxRecord.attempts + 1,
+        with start_span(op="db", name="Mark outbox as sent") as span:
+            span.set_tag("outbox.id", str(outbox_id))
+
+            stmt = (
+                update(OutboxRecord)
+                .where(OutboxRecord.id == outbox_id)
+                .values(
+                    published=True,
+                    published_at=datetime.now(timezone.utc),
+                    attempts=OutboxRecord.attempts + 1,
+                )
             )
-        )
-        await self._session.execute(stmt)
+            await self._session.execute(stmt)
 
     async def mark_failed(self, outbox_id: UUID) -> None:
         """
         Marks the specified outbox record as failed.
         Increments the `attempts` counter for the outbox record identified by `outbox_id`.
         """
-        stmt = (
-            update(OutboxRecord)
-            .where(OutboxRecord.id == outbox_id)
-            .values(attempts=OutboxRecord.attempts + 1)
-        )
-        await self._session.execute(stmt)
+        with start_span(op="db", name="Mark outbox as failed") as span:
+            span.set_tag("outbox.id", str(outbox_id))
+
+            stmt = (
+                update(OutboxRecord)
+                .where(OutboxRecord.id == outbox_id)
+                .values(attempts=OutboxRecord.attempts + 1)
+            )
+            await self._session.execute(stmt)

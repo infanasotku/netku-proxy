@@ -12,7 +12,10 @@ class OutboxDTO(BaseSchema):
 
 
 class OutboxPublishResult(BaseSchema):
-    id: UUID
+    record: OutboxDTO
     success: bool
     error: str | None
+
+
+class OutboxProcessingResult(OutboxPublishResult):
     attempts: int
