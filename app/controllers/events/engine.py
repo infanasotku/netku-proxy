@@ -77,7 +77,7 @@ async def handle_keyevents(
 
     logger = _get_logger()
 
-    tr_name = f"{key_event.event.upper()} engines/{'{engine_id}'}"
+    tr_name = f"{key_event.event.upper()} /engines/{'{engine_id}'}"
     with start_transaction(op="queue.task", name=tr_name) as tr:
         tr.set_tag("engine_key", engine_key)
         tr.set_tag("outbox_id", outbox_id)
