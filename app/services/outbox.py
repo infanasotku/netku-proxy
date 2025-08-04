@@ -1,7 +1,6 @@
-import asyncio
 from app.infra.database.uow import PostgresOutboxUnitOfWork
 from app.infra.rabbit.publisher import RabbitPublisher
-from app.schemas.outbox import OutboxDTO, OutboxPublishResult
+from app.schemas.outbox import OutboxProcessingResult
 
 
 class OutboxService:
@@ -18,29 +17,7 @@ class OutboxService:
         self._batch = batch
         self._max_attempts = max_publish_attempts
 
-    async def _process(
-        self, uow: PostgresOutboxUnitOfWork, record: OutboxDTO
-    ) -> OutboxPublishResult:
-        try:
-            await self._publisher.publish(record)
-        except Exception as e:
-            await uow.outbox.mark_failed(record.id)
-            return OutboxPublishResult(
-                id=record.id,
-                success=False,
-                error=str(e),
-                attempts=record.attempts + 1,
-            )
-        else:
-            await uow.outbox.mark_sent(record.id)
-            return OutboxPublishResult(
-                id=record.id,
-                success=True,
-                error=None,
-                attempts=record.attempts + 1,
-            )
-
-    async def process_batch(self) -> list[OutboxPublishResult]:
+    async def process_batch(self) -> list[OutboxProcessingResult]:
         """
         Processes a batch of outbox records by claiming, publishing, and updating their status.
 
@@ -62,6 +39,20 @@ class OutboxService:
             if not records:
                 return []
 
-            return await asyncio.gather(
-                *(self._process(uow, record) for record in records)
-            )
+            results = []
+            publish_results = await self._publisher.publish_batch(records)
+            for res in publish_results:
+                if res.success:
+                    await uow.outbox.mark_sent(res.record.id)
+                else:
+                    await uow.outbox.mark_failed(res.record.id)
+                results.append(
+                    OutboxProcessingResult(
+                        record=res.record,
+                        success=res.success,
+                        error=res.error,
+                        attempts=res.record.attempts + 1,
+                    )
+                )
+
+            return results

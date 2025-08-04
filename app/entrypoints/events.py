@@ -6,6 +6,7 @@ from faststream.redis import RedisBroker
 from dependency_injector import providers
 
 from app.infra.config import settings
+from app.infra.sentry import init_sentry
 from app.infra.logging import logger
 from app.container import Container
 
@@ -40,6 +41,8 @@ def create_app():
             "app.controllers.events.engine",
         ]
     )
+
+    init_sentry()
 
     engine_broker = RedisBroker(settings.redis.dsn, logger=logger)
     engine_broker.include_router(engine.router)

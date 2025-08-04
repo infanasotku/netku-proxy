@@ -2,6 +2,7 @@ from uuid import UUID
 from typing import AsyncContextManager, AsyncIterator
 
 from grpc.aio import Channel
+from sentry_sdk import start_span
 
 from app.infra.grpc.gen.xray_pb2_grpc import XrayStub
 from app.infra.grpc.gen.xray_pb2 import XrayInfo
@@ -62,10 +63,15 @@ class GRPCEngineManager:
         Raises:
             UUIDMismatchError: If the UUID returned after restart does not match the expected one.
         """
-        channel = await self._get_channel(addr)
+        with start_span(op="grpc.client", name="Take gRPC channel"):
+            channel = await self._get_channel(addr)
 
-        stub = XrayStub(channel)
-        resp: XrayInfo = await stub.RestartXray(XrayInfo(uuid=str(uuid)))
+        with start_span(op="grpc.client", name="Restart engine via gRPC") as span:
+            span.set_tag("engine_addr", addr)
+
+            stub = XrayStub(channel)
+            resp: XrayInfo = await stub.RestartXray(XrayInfo(uuid=str(uuid)))
+
         recieved_uuid = UUID(resp.uuid)
         if recieved_uuid != uuid:
             raise UUIDMismatchError(uuid, recieved_uuid)

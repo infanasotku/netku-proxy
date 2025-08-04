@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import literal_column, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sentry_sdk import start_span
 
 from app.infra.database.repositories.base import PostgresRepository
 from app.domains.engine import Engine, Version
@@ -15,21 +16,26 @@ class PostgresEngineRepository(PostgresRepository):
         and **reserve it for exclusive write-access** for the remainder of the
         caller’s transactional context.
         """
-        stmt = select(EngineModel).where(EngineModel.id == engine_id).with_for_update()
-        row = await self._session.scalar(stmt)
-        if row is None:
-            return None
+        with start_span(op="db", name="Get engine for update") as span:
+            span.set_tag("engine_id", str(engine_id))
 
-        return Engine(
-            id=engine_id,
-            uuid=row.uuid,
-            status=row.status,
-            created=row.created,
-            addr=row.addr,
-            version=Version(ts=row.version_timestamp, seq=row.version_seq),
-        )
+            stmt = (
+                select(EngineModel).where(EngineModel.id == engine_id).with_for_update()
+            )
+            row = await self._session.scalar(stmt)
+            if row is None:
+                return None
 
-    async def save(self, engine) -> bool:
+            return Engine(
+                id=engine_id,
+                uuid=row.uuid,
+                status=row.status,
+                created=row.created,
+                addr=row.addr,
+                version=Version(ts=row.version_timestamp, seq=row.version_seq),
+            )
+
+    async def save(self, engine: Engine) -> bool:
         """
         Persist the *current* state of an ``Engine`` aggregate.
 
@@ -50,31 +56,36 @@ class PostgresEngineRepository(PostgresRepository):
             bool: `True` if INSERT or UPDATE actually changed the persistent
             representation `False` otherwise.
         """
+        with start_span(op="db", name="Save engine") as span:
+            span.set_tag("engine_id", str(engine.id))
 
-        update_dict = dict(
-            uuid=engine.uuid,
-            status=engine.status,
-            version_timestamp=engine.version.ts,
-            version_seq=engine.version.seq,
-        )
-
-        stmt = (
-            pg_insert(EngineModel)
-            .values(
-                id=engine.id, created=engine.created, addr=engine.addr, **update_dict
+            update_dict = dict(
+                uuid=engine.uuid,
+                status=engine.status,
+                version_timestamp=engine.version.ts,
+                version_seq=engine.version.seq,
             )
-            .on_conflict_do_update(
-                index_elements=(EngineModel.id,),
-                set_=update_dict,
-                where=tuple_(EngineModel.version_timestamp, EngineModel.version_seq)
-                < (engine.version.ts, engine.version.seq),
+
+            stmt = (
+                pg_insert(EngineModel)
+                .values(
+                    id=engine.id,
+                    created=engine.created,
+                    addr=engine.addr,
+                    **update_dict,
+                )
+                .on_conflict_do_update(
+                    index_elements=(EngineModel.id,),
+                    set_=update_dict,
+                    where=tuple_(EngineModel.version_timestamp, EngineModel.version_seq)
+                    < (engine.version.ts, engine.version.seq),
+                )
+                .returning(literal_column("TRUE"))
             )
-            .returning(literal_column("TRUE"))
-        )
 
-        row: bool | None = await self._session.scalar(stmt)
+            row: bool | None = await self._session.scalar(stmt)
 
-        return bool(row)
+            return bool(row)
 
     async def get(self, engine_id: UUID) -> Engine | None:
         """
@@ -84,16 +95,19 @@ class PostgresEngineRepository(PostgresRepository):
         for exclusive write access. It is intended for read-only operations and does
         not participate in locking or transactional isolation.
         """
-        stmt = select(EngineModel).where(EngineModel.id == engine_id)
-        row = await self._session.scalar(stmt)
-        if row is None:
-            return None
+        with start_span(op="db", name="Get engine") as span:
+            span.set_tag("engine_id", str(engine_id))
 
-        return Engine(
-            id=engine_id,
-            uuid=row.uuid,
-            status=row.status,
-            created=row.created,
-            addr=row.addr,
-            version=Version(ts=row.version_timestamp, seq=row.version_seq),
-        )
+            stmt = select(EngineModel).where(EngineModel.id == engine_id)
+            row = await self._session.scalar(stmt)
+            if row is None:
+                return None
+
+            return Engine(
+                id=engine_id,
+                uuid=row.uuid,
+                status=row.status,
+                created=row.created,
+                addr=row.addr,
+                version=Version(ts=row.version_timestamp, seq=row.version_seq),
+            )

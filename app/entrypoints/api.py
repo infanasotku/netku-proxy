@@ -3,9 +3,23 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.infra.config import settings
+from app.infra.sentry import init_sentry
 from app.container import Container
 
 from app.controllers.admin import create_admin
+
+
+def traces_sampler(ctx: dict):
+    scope: dict = ctx["asgi_scope"]
+    path: str = scope["path"]
+    method: str = scope["method"]
+
+    if path.startswith("/admin") and not (
+        path.startswith("/admin/engine/edit") and method == "POST"
+    ):
+        return 0.0
+
+    return 1.0
 
 
 def create_lifespan(container: Container):
@@ -33,6 +47,8 @@ def create_app() -> FastAPI:
             "app.controllers.admin.views",
         ]
     )
+
+    init_sentry(traces_sampler=traces_sampler)
 
     app = FastAPI(redoc_url=None, docs_url=None, lifespan=create_lifespan(container))
     app.__dict__["container"] = container

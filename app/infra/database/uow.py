@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Protocol, AsyncContextManager
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sentry_sdk import start_span
 
 from app.domains.event import DomainEvent
 from app.infra.database.repositories.engine import PostgresEngineRepository
@@ -90,21 +91,27 @@ class PostgresEngineUnitOfWork(TransactionBoundary, DomainEventsBuffer):
             await self._session.close()
 
     async def _flush_outbox(self):
-        if len(self._events) == 0:
-            return
-        await self._outbox.store(self._events, caused_by=self._caused_by)
-        self._events.clear()
+        with start_span(op="db", name="Flush engine outbox") as span:
+            span.set_tag("events_count", len(self._events))
+
+            if len(self._events) == 0:
+                return
+            await self._outbox.store(self._events, caused_by=self._caused_by)
+            self._events.clear()
 
     @asynccontextmanager
     async def begin(self, *, caused_by=None):
-        await self._start(caused_by)
-        try:
-            yield self
-        except Exception as e:
-            await self._finish(e)
-            raise
-        else:
-            await self._finish(None)
+        with start_span(op="db", name="Begin engine UOW") as span:
+            span.set_tag("caused_by", caused_by)
+
+            await self._start(caused_by)
+            try:
+                yield self
+            except Exception as e:
+                await self._finish(e)
+                raise
+            else:
+                await self._finish(None)
 
     def collect(self, events):
         self._events.extend(events)
@@ -131,10 +138,11 @@ class PostgresOutboxUnitOfWork(TransactionBoundary):
 
     @asynccontextmanager
     async def begin(self, *, caused_by: str | None = None):
-        session = self._session_factory()
-        try:
-            async with session.begin():
-                self._outbox = PostgresOutboxRepository(session)
-                yield self
-        finally:
-            await session.close()
+        with start_span(op="db", name="Begin outbox UOW"):
+            session = self._session_factory()
+            try:
+                async with session.begin():
+                    self._outbox = PostgresOutboxRepository(session)
+                    yield self
+            finally:
+                await session.close()

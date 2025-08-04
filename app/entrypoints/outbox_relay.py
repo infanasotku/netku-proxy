@@ -1,13 +1,22 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sentry_sdk.types import Event
 
 from app.infra.config import settings
+from app.infra.sentry import init_sentry
 from app.infra.logging import logger
 from app.infra.rabbit import queues, exchanges
 from app.container import Container
 
 from app.controllers.outbox import relay
+
+
+def before_send_transaction(event: Event, _):
+    tags = event.get("tags") or {}
+    if tags.get("empty_batch") == "1":
+        return None  # skip transaction
+    return event
 
 
 def create_lifespan(container: Container):
@@ -41,6 +50,8 @@ def create_app():
             "app.controllers.outbox.relay",
         ]
     )
+
+    init_sentry(before_send_transaction=before_send_transaction)
 
     app = FastAPI(redoc_url=None, docs_url=None, lifespan=create_lifespan(container))
     app.__dict__["container"] = container

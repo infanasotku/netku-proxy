@@ -11,6 +11,7 @@ from faststream.broker.message import AckStatus
 from dependency_injector.wiring import inject, Provide
 from redis.asyncio import Redis
 from pydantic import BaseModel
+from sentry_sdk import start_transaction
 
 from app.infra.redis.streams import (
     engine_stream,
@@ -76,34 +77,40 @@ async def handle_keyevents(
 
     logger = _get_logger()
 
-    try:
-        match key_event.event:
-            case "expired":
-                await handle_engine_dead(
-                    engine_key=engine_key,
-                    outbox_id=outbox_id,
-                    version=version,
-                )
-            case "hset":
-                await handle_engine_info_changed(
-                    engine_key=engine_key,
-                    outbox_id=outbox_id,
-                    redis_key=key_event.key,
-                    version=version,
-                )
-            case _:
-                logger.warning(f"Unknown event type: {key_event.event}")
-    except Exception as e:
-        logger.error(
-            f"Error processing event [{key_event.event}] for engine [{engine_key}]  id [{stream_id}]: {e}",
-            exc_info=True,
-        )
-        await message.nack()
-    else:
-        logger.info(
-            f"Processed event [{key_event.event}] for engine [{engine_key}] id [{stream_id}]",
-            extra=dict(channel=engine_stream.name),
-        )
+    tr_name = f"{key_event.event.upper()} engines/{'{engine_id}'}"
+    with start_transaction(op="queue.task", name=tr_name) as tr:
+        tr.set_tag("engine_key", engine_key)
+        tr.set_tag("outbox_id", outbox_id)
+        tr.set_tag("version", version.to_stream_id())
+
+        try:
+            match key_event.event:
+                case "expired":
+                    await handle_engine_dead(
+                        engine_key=engine_key,
+                        outbox_id=outbox_id,
+                        version=version,
+                    )
+                case "hset":
+                    await handle_engine_info_changed(
+                        engine_key=engine_key,
+                        outbox_id=outbox_id,
+                        redis_key=key_event.key,
+                        version=version,
+                    )
+                case _:
+                    logger.warning(f"Unknown event type: {key_event.event}")
+        except Exception as e:
+            logger.error(
+                f"Error processing event [{key_event.event}] for engine [{engine_key}]  id [{stream_id}]: {e}",
+                exc_info=True,
+            )
+            await message.nack()
+        else:
+            logger.info(
+                f"Processed event [{key_event.event}] for engine [{engine_key}] id [{stream_id}]",
+                extra=dict(channel=engine_stream.name),
+            )
 
 
 @inject
