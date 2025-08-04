@@ -17,6 +17,9 @@ spec:
         app: {{ .Values.api.container.name }}
         environment: {{ .Values.environment }}
         version: {{ .Values.api.version }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
 
     spec:
       securityContext:
