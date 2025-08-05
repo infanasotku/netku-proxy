@@ -1,7 +1,8 @@
 from typing import Awaitable
+
 from dependency_injector import providers, containers
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from faststream.rabbit import RabbitBroker
+from faststream.rabbit import RabbitBroker, RabbitQueue
 from faststream.redis import RedisBroker
 
 from app.services.engine import EngineService
@@ -10,7 +11,7 @@ from app.infra.logging import logger
 from app.infra.database.uow import PostgresEngineUnitOfWork, PostgresOutboxUnitOfWork
 from app.infra.grpc.engine import create_grpc_manager
 from app.infra.grpc.channel import generate_create_channel_context
-from app.infra.rabbit.publisher import RabbitPublisher
+from app.infra.rabbit.publisher import RabbitOutboxPublisher
 from app.infra.rabbit import queues
 
 
@@ -19,15 +20,23 @@ async def get_broker(dsn: str, *, virtualhost: str | None = None):
         virtualhost = "/" + virtualhost
     broker = RabbitBroker(dsn, virtualhost=virtualhost, publisher_confirms=True)
     await broker.connect()
-    yield broker
-    await broker.stop()
+    try:
+        yield broker
+    finally:
+        await broker.stop()
+
+
+async def get_rabbit_publisher(broker: RabbitBroker, *, queue: RabbitQueue):
+    return broker.publisher(queue)
 
 
 async def get_redis(dsn: str, *, db: int = 0):
     broker = RedisBroker(dsn, db=db)
     redis = await broker.connect()
-    yield redis
-    await broker.stop()
+    try:
+        yield redis
+    finally:
+        await broker.stop()
 
 
 class Container(containers.DeclarativeContainer):
@@ -58,11 +67,12 @@ class Container(containers.DeclarativeContainer):
         config.rabbit.dsn,
         virtualhost=config.rabbit_proxy_vhost,
     )
+    rabbit_publisher = providers.Singleton(
+        get_rabbit_publisher, rabbit_broker, queue=queues.proxy_engine_queue
+    )
 
     engine_manager = providers.Resource(create_grpc_manager, create_channel_context)
-    rabbit_publisher = providers.Singleton(
-        RabbitPublisher, rabbit_broker, queue=queues.proxy_engine_queue
-    )
+    rabbit_op = providers.Singleton(RabbitOutboxPublisher, rabbit_publisher)
 
     engine_uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)
     outbox_uow = providers.Factory(PostgresOutboxUnitOfWork, async_sessionmaker)
@@ -75,5 +85,5 @@ class Container(containers.DeclarativeContainer):
     outbox_service = providers.Factory[Awaitable[OutboxService]](
         OutboxService,  # type: ignore
         outbox_uow,
-        rabbit_publisher,
+        rabbit_op,
     )
