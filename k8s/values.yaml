@@ -37,7 +37,7 @@ api:
 
 # --- EVENTS ---
 events:
-  version: "0.1.3"
+  version: "0.1.4"
   container:
     name: netku-proxy-events
     port: 5101
@@ -54,7 +54,7 @@ events:
 
 # --- OUTBOX ---
 outbox:
-  version: "0.1.1"
+  version: "0.1.2"
   container:
     name: netku-proxy-outbox
     port: 5102
