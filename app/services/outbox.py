@@ -1,5 +1,5 @@
 from app.infra.database.uow import PostgresOutboxUnitOfWork
-from app.infra.rabbit.publisher import RabbitPublisher
+from app.infra.rabbit.publisher import RabbitOutboxPublisher
 from app.schemas.outbox import OutboxProcessingResult
 
 
@@ -7,7 +7,7 @@ class OutboxService:
     def __init__(
         self,
         uow: PostgresOutboxUnitOfWork,
-        publisher: RabbitPublisher,
+        publisher: RabbitOutboxPublisher,
         *,
         batch=200,
         max_publish_attempts=5,
