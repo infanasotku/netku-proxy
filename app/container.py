@@ -22,6 +22,9 @@ async def get_broker(dsn: str, *, virtualhost: str | None = None):
         dsn,
         virtualhost=virtualhost,
         publisher_confirms=True,
+        # Heartbeat interval set to 20 seconds to balance timely detection of dead connections
+        # and avoid excessive network traffic. This value helps maintain connection reliability
+        # without causing unnecessary disconnects due to transient network issues.
         client_properties=utils.RabbitClientProperties(heartbeat=20),
     )
     await broker.connect()
