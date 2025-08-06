@@ -6,7 +6,7 @@ metadata:
     infanasotku.com: "Infanasotku software engineier"
 
 spec:
-  replicas: {{ .Values.replicas }}
+  replicas: {{ .Values.api.replicas }}
   selector:
     matchLabels:
       app: {{ .Values.api.container.name }}
@@ -23,8 +23,8 @@ spec:
 
     spec:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
 
       containers:
         - name: {{ .Values.api.container.name }}
@@ -42,6 +42,7 @@ spec:
             - secretRef:
                 name: netku-proxy-secrets
 
+          {{- if .Values.environment == "dev" -}}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -55,6 +56,7 @@ spec:
               port: {{ .Values.api.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
+          {{- end -}}
 
           resources:
             requests:
