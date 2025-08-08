@@ -26,7 +26,7 @@ spec:
         runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
         runAsUser: {{ .Values.securityContext.runAsUser }}
 
-      {{/* ---------- DEV-ONlY ---------- */}}
+      {{/* ---------- DEV-ONLY ---------- */}}
       {{- if eq .Values.environment "dev" }}
       volumes:
       - name: dev-volume
@@ -49,7 +49,7 @@ spec:
       dnsConfig:
         options:
           - name: ndots
-            value: "1" 
+            value: "1"
       {{- end }}
 
       containers:
@@ -96,7 +96,7 @@ spec:
             capabilities:
               drop: ["ALL"]
 
-          {{/* ---------- DEV-ONlY ---------- */}}
+          {{/* ---------- DEV-ONLY ---------- */}}
           {{- if eq .Values.environment "dev" }}
           volumeMounts:
           - mountPath: /app
