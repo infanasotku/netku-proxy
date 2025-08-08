@@ -6,7 +6,7 @@ metadata:
     infanasotku.com: "Infanasotku software engineer"
 
 spec:
-  replicas: {{ .Values.replicas }}
+  replicas: {{ .Values.outbox.replicas }}
   selector:
     matchLabels:
       app: {{ .Values.outbox.container.name }}
@@ -23,8 +23,34 @@ spec:
 
     spec:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+
+      {{/* ---------- DEV-ONLY ---------- */}}
+      {{- if eq .Values.environment "dev" }}
+      volumes:
+      - name: dev-volume
+        emptyDir: {}
+
+      initContainers:
+        - name: seed-code
+          image: {{ .Values.container.image }}:{{ .Values.container.tag }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "▶ seeding code into volume"
+              cp -a /app/. /workspace/
+          volumeMounts:
+            - name: dev-volume
+              subPath: src
+              mountPath: /workspace
+
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
+      {{- end }}
 
       containers:
         - name: {{ .Values.outbox.container.name }}
@@ -42,6 +68,7 @@ spec:
             - secretRef:
                 name: netku-proxy-secrets
 
+          {{- if ne .Values.environment "dev" }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -55,6 +82,7 @@ spec:
               port: {{.Values.outbox.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
+          {{- end }}
 
           resources:
             requests:
@@ -67,6 +95,17 @@ spec:
           securityContext:
             capabilities:
               drop: ["ALL"]
+
+          {{/* ---------- DEV-ONLY ---------- */}}
+          {{- if eq .Values.environment "dev" }}
+          volumeMounts:
+          - mountPath: /app
+            name: dev-volume
+            subPath: src
+          - mountPath: /root/.local
+            name: dev-volume
+            subPath: site
+          {{- end }}
 
       imagePullSecrets:
         - name: regcred
