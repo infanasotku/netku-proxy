@@ -1,0 +1,95 @@
+version: v2beta1
+name: netku-proxy
+
+dev:
+  api:
+    labelSelector:
+      app: netku-proxy-api
+    sync:
+    - path: .:/app
+      noWatch: true
+      disableDownload: true
+      printLogs: true
+      initialSync: mirrorLocal
+      uploadExcludePaths:
+        - "**/__pycache__/**"
+        - "**/*.pyc"
+        - "**/*.pyo"
+        - ".*"
+        - "venv"
+        - "proto"
+      onUpload:
+        exec:
+        - name: pip-install
+          command: sh
+          args: ["-c", "pip install --user -r /app/requirements.txt"]
+          onChange: ["requirements.txt"]
+        - name: restart
+          command: sh
+          args: ["-c", "kill 1 || true"]
+          onChange: ["requirements.txt"]
+
+  events:
+    labelSelector:
+      app: netku-proxy-events
+    sync:
+    - path: .:/app
+      noWatch: true
+      disableDownload: true
+      printLogs: true
+      initialSync: mirrorLocal
+      uploadExcludePaths:
+        - "**/__pycache__/**"
+        - "**/*.pyc"
+        - "**/*.pyo"
+        - ".*"
+        - "venv"
+        - "proto"
+      onUpload:
+        exec:
+        - name: pip-install
+          command: sh
+          args: ["-c", "pip install --user -r /app/requirements.txt"]
+          onChange: ["requirements.txt"]
+        - name: restart
+          command: sh
+          args: ["-c", "kill 1 || true"]
+          onChange: ["requirements.txt"]
+
+  outbox:
+    labelSelector:
+      app: netku-proxy-outbox
+    sync:
+    - path: .:/app
+      noWatch: true
+      disableDownload: true
+      printLogs: true
+      initialSync: mirrorLocal
+      uploadExcludePaths:
+        - "**/__pycache__/**"
+        - "**/*.pyc"
+        - "**/*.pyo"
+        - ".*"
+        - "venv"
+        - "proto"
+      onUpload:
+        exec:
+        - name: pip-install
+          command: sh
+          args: ["-c", "pip install --user -r /app/requirements.txt"]
+          onChange: ["requirements.txt"]
+        - name: restart
+          command: sh
+          args: ["-c", "kill 1 || true"]
+          onChange: ["requirements.txt"]
+
+
+
+
+pipelines:
+  dev-api: |-
+    start_dev api
+  dev-outbox: |-
+    start_dev outbox
+  dev-events: |-
+    start_dev events
