@@ -85,3 +85,10 @@ jobs:
             --set container.tag=latest --namespace netku-prod k8s \
             && rm k8s/temp-secrets.yaml
           EOF
+
+      - name: Uninstall staging
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
+            cd ${{ secrets.PROJECT_DIR }}
+            helm uninstall netku-proxy-staging --namespace netku-staging
+          EOF

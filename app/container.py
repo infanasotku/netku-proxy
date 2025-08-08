@@ -2,7 +2,7 @@ from typing import Awaitable
 
 from dependency_injector import providers, containers
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from faststream.rabbit import RabbitBroker, RabbitQueue
+from faststream.rabbit import RabbitBroker, RabbitQueue, utils
 from faststream.redis import RedisBroker
 
 from app.services.engine import EngineService
@@ -18,7 +18,15 @@ from app.infra.rabbit import queues
 async def get_broker(dsn: str, *, virtualhost: str | None = None):
     if virtualhost is not None and virtualhost.startswith("/"):
         virtualhost = "/" + virtualhost
-    broker = RabbitBroker(dsn, virtualhost=virtualhost, publisher_confirms=True)
+    broker = RabbitBroker(
+        dsn,
+        virtualhost=virtualhost,
+        publisher_confirms=True,
+        # Heartbeat interval set to 20 seconds to balance timely detection of dead connections
+        # and avoid excessive network traffic. This value helps maintain connection reliability
+        # without causing unnecessary disconnects due to transient network issues.
+        client_properties=utils.RabbitClientProperties(heartbeat=20),
+    )
     await broker.connect()
     try:
         yield broker
