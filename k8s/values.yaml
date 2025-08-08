@@ -2,9 +2,11 @@
 container:
   image: registry.infanasotku.com:5501/netku/netku-proxy
   tag: latest
-replicas: 2
 environment: prod
 name: netku-proxy
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
 
 config:
   POSTGRES__DB_NAME: netku
@@ -16,6 +18,7 @@ config:
 # --- API ---
 api:
   version: "0.1.4"
+  replicas: 2
   container:
     name: netku-proxy-api
     port: 5100
@@ -38,6 +41,7 @@ api:
 # --- EVENTS ---
 events:
   version: "0.1.4"
+  replicas: 2
   container:
     name: netku-proxy-events
     port: 5101
@@ -55,6 +59,7 @@ events:
 # --- OUTBOX ---
 outbox:
   version: "0.1.2"
+  replicas: 2
   container:
     name: netku-proxy-outbox
     port: 5102
