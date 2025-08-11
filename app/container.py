@@ -1,4 +1,4 @@
-from typing import Awaitable, Generic, TypeVar
+from typing import Awaitable, TypeVar
 
 from dependency_injector import providers, containers
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
