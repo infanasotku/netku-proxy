@@ -7,7 +7,7 @@ from sentry_sdk.tracing import TransactionSource
 
 from app.infra.config import settings
 from app.infra.sentry import init_sentry
-from app.container import Container
+from app.container import Container, ApiResource
 
 from app.controllers.admin import create_admin
 
@@ -37,17 +37,15 @@ def traces_sampler(ctx: dict):
 
 
 def create_lifespan(container: Container):
+    async def _maybe_future(future):
+        if future is not None:
+            await future
+
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        future = container.init_resources()
-        if future is not None:
-            await future
-
+        await _maybe_future(container.init_resources(ApiResource))
         yield
-
-        future = container.shutdown_resources()
-        if future is not None:
-            await future
+        await _maybe_future(container.shutdown_resources(ApiResource))
 
     return lifespan
 

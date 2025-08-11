@@ -1,4 +1,4 @@
-from typing import Awaitable
+from typing import Awaitable, TypeVar
 
 from dependency_injector import providers, containers
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
@@ -15,7 +15,7 @@ from app.infra.rabbit.publisher import RabbitOutboxPublisher
 from app.infra.rabbit import queues
 
 
-async def get_broker(dsn: str, *, virtualhost: str | None = None):
+async def get_rabbit_broker(dsn: str, *, virtualhost: str | None = None):
     if virtualhost is not None and virtualhost.startswith("/"):
         virtualhost = "/" + virtualhost
     broker = RabbitBroker(
@@ -34,17 +34,36 @@ async def get_broker(dsn: str, *, virtualhost: str | None = None):
         await broker.stop()
 
 
-async def get_rabbit_publisher(broker: RabbitBroker, *, queue: RabbitQueue):
+def get_rabbit_publisher(broker: RabbitBroker, *, queue: RabbitQueue):
     return broker.publisher(queue)
 
 
-async def get_redis(dsn: str, *, db: int = 0):
+async def get_redis_broker(dsn: str, *, db: int = 0):
     broker = RedisBroker(dsn, db=db)
-    redis = await broker.connect()
+    await broker.connect()
     try:
-        yield redis
+        yield broker
     finally:
         await broker.stop()
+
+
+async def get_redis(broker: RedisBroker):
+    return await broker.connect()
+
+
+ResourceT = TypeVar("ResourceT")
+
+
+class EventsResource(providers.Resource[ResourceT]):
+    pass
+
+
+class ApiResource(providers.Resource):
+    pass
+
+
+class OutboxResource(providers.Resource[ResourceT]):
+    pass
 
 
 class Container(containers.DeclarativeContainer):
@@ -63,15 +82,23 @@ class Container(containers.DeclarativeContainer):
     async_sessionmaker = providers.Singleton(
         async_sessionmaker[AsyncSession], async_engine
     )
-    redis = providers.Resource(get_redis, config.redis.dsn, db=config.redis.db)
+    redis_broker = EventsResource[Awaitable[RedisBroker]](
+        get_redis_broker,  # type: ignore
+        config.redis.dsn,
+        db=config.redis.db,
+    )
+    redis = providers.Singleton(
+        get_redis,
+        redis_broker,
+    )
     create_channel_context = providers.Singleton(
         generate_create_channel_context,
         logger,
         with_cert=True,
         root_certificates=config.ssl.root_certificates,
     )
-    rabbit_broker = providers.Resource[Awaitable[RabbitBroker]](
-        get_broker,  # type: ignore
+    rabbit_broker = OutboxResource[Awaitable[RabbitBroker]](
+        get_rabbit_broker,  # type: ignore
         config.rabbit.dsn,
         virtualhost=config.rabbit_proxy_vhost,
     )
@@ -79,7 +106,7 @@ class Container(containers.DeclarativeContainer):
         get_rabbit_publisher, rabbit_broker, queue=queues.proxy_engine_queue
     )
 
-    engine_manager = providers.Resource(create_grpc_manager, create_channel_context)
+    engine_manager = ApiResource(create_grpc_manager, create_channel_context)
     rabbit_op = providers.Singleton(RabbitOutboxPublisher, rabbit_publisher)
 
     engine_uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)

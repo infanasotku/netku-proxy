@@ -7,7 +7,7 @@ from app.infra.config import settings
 from app.infra.sentry import init_sentry
 from app.infra.logging import logger
 from app.infra.rabbit import queues, exchanges
-from app.container import Container
+from app.container import Container, OutboxResource
 
 from app.controllers.outbox import relay
 
@@ -26,7 +26,7 @@ def create_lifespan(container: Container):
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        await _maybe_future(container.init_resources())
+        await _maybe_future(container.init_resources(OutboxResource))
 
         broker = await container.rabbit_broker()
         exc = await broker.declare_exchange(exchanges.dlx_exchange)
@@ -37,7 +37,7 @@ def create_lifespan(container: Container):
         async with relay.start_outbox_relay(logger):
             yield
 
-        await _maybe_future(container.shutdown_resources())
+        await _maybe_future(container.shutdown_resources(OutboxResource))
 
     return lifespan
 

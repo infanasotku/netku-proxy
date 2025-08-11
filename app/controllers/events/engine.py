@@ -146,6 +146,7 @@ async def handle_engine_info_changed(
         logger.warning(
             f"Engine with ID {engine_key} already removed, processing [info changed] event end."
         )
+        return
 
     payload = {k.decode(): data[k].decode() for k in data}
     payload["id"] = engine_key
