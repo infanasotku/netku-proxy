@@ -86,9 +86,19 @@ jobs:
             && rm k8s/temp-secrets.yaml
           EOF
 
-      - name: Uninstall staging
+      - name: Uninstall staging via SSH
         run: |
           ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
             cd ${{ secrets.PROJECT_DIR }}
             helm uninstall netku-proxy-staging --namespace netku-staging
+          EOF
+
+      - name: Redeploy dev via SSH
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
+            cd ${{ secrets.PROJECT_DIR }}
+            sops -d k8s/secrets-dev.yaml > k8s/temp-secrets.yaml && \
+            helm upgrade --install netku-proxy-dev -f k8s/values-dev.yaml \
+            --set container.tag=latest --namespace netku-dev k8s \
+            && rm k8s/temp-secrets.yaml
           EOF
