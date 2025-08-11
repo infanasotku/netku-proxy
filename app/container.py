@@ -54,7 +54,7 @@ async def get_redis(broker: RedisBroker):
 ResourceT = TypeVar("ResourceT")
 
 
-class EventsResource(providers.Resource[ResourceT], Generic[ResourceT]):
+class EventsResource(providers.Resource[ResourceT]):
     pass
 
 
@@ -62,7 +62,7 @@ class ApiResource(providers.Resource):
     pass
 
 
-class OutboxResource(providers.Resource[ResourceT], Generic[ResourceT]):
+class OutboxResource(providers.Resource[ResourceT]):
     pass
 
 
