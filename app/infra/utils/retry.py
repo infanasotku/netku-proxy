@@ -7,7 +7,7 @@ def retry(
     delay: float = 1.0,
     backoff: float = 2.0,
     jitter: float = 0.1,
-):  # -> Callable[..., Callable[..., CoroutineType[Any, Any, Any |...:
+):
     def decorator(func):
         async def wrapper(*args, **kwargs):
             current_delay = delay
