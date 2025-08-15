@@ -1,6 +1,7 @@
+from collections.abc import Awaitable
 from contextlib import asynccontextmanager
 from logging import Logger
-from typing import Awaitable, cast
+from typing import cast
 from uuid import UUID
 import asyncio
 
@@ -11,7 +12,7 @@ from faststream.broker.message import AckStatus
 from dependency_injector.wiring import inject, Provide
 from redis.asyncio import Redis
 from pydantic import BaseModel
-from sentry_sdk import start_transaction
+from sentry_sdk import start_span, start_transaction
 
 from app.infra.redis.streams import (
     engine_stream,
@@ -23,11 +24,11 @@ from app.infra.redis.streams import (
     PAUSE,
     MAX_RETRY,
 )
+from app.infra.utils.retry import retry
 from app.services.engine import EngineService
 from app.services.exceptions.engine import EngineNotExistError
-from app.schemas.engine import EngineCmd
+from app.schemas.engine import EngineCmd, EngineInfoDTO
 from app.container import Container
-
 from app.domains.engine import Version
 
 router = RedisRouter()
@@ -95,7 +96,6 @@ async def handle_keyevents(
                     await handle_engine_info_changed(
                         engine_key=engine_key,
                         outbox_id=outbox_id,
-                        redis_key=key_event.key,
                         version=version,
                     )
                 case _:
@@ -136,39 +136,66 @@ async def handle_engine_info_changed(
     engine_key: str,
     outbox_id: str,
     version: Version,
-    redis_key: str,
-    redis: Redis = Provide[Container.redis],
     engine_service: EngineService = Provide[Container.engine_service],
     logger: Logger = Provide[Container.logger],
 ):
-    data: dict[bytes, bytes] = await cast(Awaitable, redis.hgetall(redis_key))
-    if len(data) == 0:
+    try:
+        engine = await get_engine_info(engine_key, prefix=KEY_PREFIX)
+    except KeyError:
         logger.warning(
             f"Engine with ID {engine_key} already removed, processing [info changed] event end."
         )
         return
 
-    payload = {k.decode(): data[k].decode() for k in data}
-    payload["id"] = engine_key
-    engine = EngineCmd.model_validate_strings(payload)
-
-    await engine_service.upsert(engine, caused_by=outbox_id, version=version)
+    await engine_service.upsert(
+        EngineCmd.model_validate(engine), caused_by=outbox_id, version=version
+    )
 
 
 @asynccontextmanager
 async def start_keyevents_reclaimer(redis: Redis, logger: Logger):
+    @retry()
+    async def _get_entries(cursor: str) -> tuple[str, list]:
+        cursor, entries = await redis.xautoclaim(
+            engine_stream.name,
+            groupname=GROUP,
+            consumername=CONSUMER,
+            min_idle_time=IDLE_MS,
+            start_id=cursor,
+            count=BATCH,
+        )
+        return cursor, entries
+
+    @retry()
+    async def _get_deliveries_map(
+        *, min: bytes, max: bytes, count: int
+    ) -> dict[bytes, int]:
+        pendings = await redis.xpending_range(
+            engine_stream.name,
+            groupname=GROUP,
+            min=min,
+            max=max,
+            count=count,
+            consumername=CONSUMER,
+        )
+        deliveries_map: dict[bytes, int] = {
+            msg["message_id"]: msg["times_delivered"] for msg in pendings
+        }
+        return deliveries_map
+
+    @retry()
+    async def _send_to_dlq(body: dict):
+        await redis.xadd(dlq_stream.name, body)
+
+    @retry()
+    async def _xack_events(ids: list):
+        await redis.xack(engine_stream.name, GROUP, *ids)
+
     async def _loop():
         cursor = "0-0"
 
         while True:
-            cursor, entries = await redis.xautoclaim(
-                engine_stream.name,
-                groupname=GROUP,
-                consumername=CONSUMER,
-                min_idle_time=IDLE_MS,
-                start_id=cursor,
-                count=BATCH,
-            )
+            cursor, entries = await _get_entries(cursor)
 
             if len(entries) == 0:
                 await asyncio.sleep(PAUSE)
@@ -179,17 +206,9 @@ async def start_keyevents_reclaimer(redis: Redis, logger: Logger):
                 ids, key=lambda x: (int(x.split(b"-")[0]), int(x.split(b"-")[1]))
             )
 
-            pendings = await redis.xpending_range(
-                engine_stream.name,
-                groupname=GROUP,
-                min=ids_sorted[0],
-                max=ids_sorted[-1],
-                count=len(ids_sorted),
-                consumername=CONSUMER,
+            deliveries_map = await _get_deliveries_map(
+                min=ids_sorted[0], max=ids_sorted[-1], count=len(ids_sorted)
             )
-            deliveries_map: dict[bytes, int] = {
-                msg["message_id"]: msg["times_delivered"] for msg in pendings
-            }
 
             xacks = []
 
@@ -198,7 +217,7 @@ async def start_keyevents_reclaimer(redis: Redis, logger: Logger):
 
                 if deliveries > MAX_RETRY:
                     raw[b"original_id"] = msg_id
-                    await redis.xadd(dlq_stream.name, raw)  # Send message to DLQ
+                    await _send_to_dlq(raw)  # Send message to DLQ
                     xacks.append(msg_id)
                     continue
 
@@ -222,7 +241,7 @@ async def start_keyevents_reclaimer(redis: Redis, logger: Logger):
                     xacks.append(msg_id)
 
             if len(xacks) != 0:
-                await redis.xack(engine_stream.name, GROUP, *xacks)
+                await _xack_events(xacks)
 
     async def _wrap():
         try:
@@ -243,3 +262,36 @@ async def start_keyevents_reclaimer(redis: Redis, logger: Logger):
             await task  # Forward erros from task
         except asyncio.CancelledError:
             pass
+
+
+async def get_engine_info(
+    id: str,
+    *,
+    prefix: str,
+    redis: Redis = Provide[Container.redis],
+) -> EngineInfoDTO:
+    """
+    Retrieve engine information for a given engine ID and prefix.
+
+    Raises:
+        KeyError: If no engine information is found for the given ID.
+
+    Notes:
+        - Uses a retry mechanism for Redis operations.
+    """
+
+    @retry()
+    async def _process():
+        return await cast(Awaitable, redis.hgetall(redis_key))
+
+    with start_span(op="task", name="Get engine info") as s:
+        redis_key = f"{prefix}{id}"
+        s.set_tag("key", redis_key)
+
+        data = await _process()
+        if len(data) == 0:
+            raise KeyError(f"Engine with ID {id} not found")
+
+        payload = {k.decode(): data[k].decode() for k in data}
+        payload["id"] = id
+        return EngineInfoDTO.model_validate_strings(payload)

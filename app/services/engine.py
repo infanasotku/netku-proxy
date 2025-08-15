@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from app.infra.grpc.engine import GRPCEngineManager
+from app.schemas.engine import EngineCmd
 from app.services.exceptions.engine import EngineDeadError, EngineNotExistError
 
 from app.infra.database.uow import PostgresEngineUnitOfWork
@@ -59,7 +60,7 @@ class EngineService:
             if changed:
                 uow.collect(current_engine.pull_events())
 
-    async def upsert(self, engine, *, caused_by=None, version):
+    async def upsert(self, engine: EngineCmd, *, caused_by=None, version):
         """
         Create **or** update an engine aggregate in an *exactly‑once* fashion.
 
