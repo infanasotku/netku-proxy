@@ -8,6 +8,7 @@ from app.infra.grpc.gen.xray_pb2_grpc import XrayStub
 from app.infra.grpc.gen.xray_pb2 import XrayInfo
 
 from app.infra.grpc.channel import CreateChannelContext
+from app.infra.utils.retry import retry
 
 
 class UUIDMismatchError(Exception):
@@ -66,11 +67,15 @@ class GRPCEngineManager:
         with start_span(op="grpc.client", name="Take gRPC channel"):
             channel = await self._get_channel(addr)
 
+        @retry()
+        async def _process() -> XrayInfo:
+            stub = XrayStub(channel)
+            return await stub.RestartXray(XrayInfo(uuid=str(uuid)))
+
         with start_span(op="grpc.client", name="Restart engine via gRPC") as span:
             span.set_tag("engine_addr", addr)
 
-            stub = XrayStub(channel)
-            resp: XrayInfo = await stub.RestartXray(XrayInfo(uuid=str(uuid)))
+            resp = await _process()
 
         recieved_uuid = UUID(resp.uuid)
         if recieved_uuid != uuid:

@@ -17,7 +17,7 @@ config:
 
 # --- API ---
 api:
-  version: "0.1.6"
+  version: "0.1.7"
   replicas: 2
   container:
     name: netku-proxy-api
