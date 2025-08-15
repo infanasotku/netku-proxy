@@ -75,6 +75,7 @@ spec:
               port: {{.Values.outbox.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
 
           readinessProbe:
             httpGet:
@@ -82,6 +83,7 @@ spec:
               port: {{.Values.outbox.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
           {{- end }}
 
           resources:

@@ -40,7 +40,7 @@ api:
 
 # --- EVENTS ---
 events:
-  version: "0.1.6"
+  version: "0.1.7"
   replicas: 2
   container:
     name: netku-proxy-events
@@ -58,7 +58,7 @@ events:
 
 # --- OUTBOX ---
 outbox:
-  version: "0.1.4"
+  version: "0.1.5"
   replicas: 2
   container:
     name: netku-proxy-outbox
