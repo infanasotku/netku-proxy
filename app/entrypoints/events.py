@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from faststream.asgi import make_ping_asgi
+from faststream.asgi import make_ping_asgi, AsgiFastStream, AsgiResponse, get
 from faststream import FastStream
 
 from app.infra.config import settings
@@ -11,7 +11,7 @@ from app.container import Container, EventsResource
 from app.controllers.events import engine
 
 
-def create_lifespan(container: Container, app):
+def create_lifespan(container: Container, app: AsgiFastStream):
     async def _maybe_future(future):
         if future is not None:
             await future
@@ -21,7 +21,13 @@ def create_lifespan(container: Container, app):
         engine_broker = await container.redis_broker()
         engine_broker.include_router(engine.router)
 
-        app.mount("/healthz", make_ping_asgi(engine_broker, timeout=5.0))
+        app.mount("/readyz", make_ping_asgi(engine_broker, timeout=5.0))
+
+        @get
+        async def lives(_):
+            return AsgiResponse(b"", status_code=204)
+
+        app.mount("/livez", lives)
         app.broker = engine_broker
 
         redis = await container.redis()

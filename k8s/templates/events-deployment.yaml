@@ -71,7 +71,7 @@ spec:
           {{- if ne .Values.environment "dev" }}
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /livez
               port: {{.Values.events.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
@@ -79,7 +79,7 @@ spec:
 
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: {{.Values.events.container.port }}
             initialDelaySeconds: 10
             periodSeconds: 10
