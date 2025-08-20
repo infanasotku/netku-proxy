@@ -68,6 +68,9 @@ jobs:
       contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'redeploy')
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Create Sentry release
         uses: getsentry/action-release@v3
         env:
