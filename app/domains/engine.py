@@ -39,6 +39,12 @@ class EngineUpdated(DomainEvent):
     new_status: EngineStatus
 
 
+@dataclass(frozen=True, slots=True)
+class EngineRestored(DomainEvent):
+    uuid: UUID | None
+    status: EngineStatus
+
+
 @dataclass
 class Engine(Domain):
     id: UUID
@@ -80,4 +86,15 @@ class Engine(Domain):
         self.version = version
 
         event = EngineDead(self.id, version.to_stream_id())
+        self._events.append(event)
+
+    def restore(self, running: bool, uuid: UUID | None = None, *, version: Version):
+        if not self._is_newer(version):
+            return
+
+        self.status = EngineStatus.ACTIVE if running else EngineStatus.READY
+        self.uuid = uuid
+        self.version = version
+
+        event = EngineRestored(self.id, version.to_stream_id(), uuid, self.status)
         self._events.append(event)

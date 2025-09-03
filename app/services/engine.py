@@ -91,6 +91,8 @@ class EngineService:
                     addr=engine.addr,
                     version=version,
                 )
+            elif current_engine.status == EngineStatus.DEAD:
+                current_engine.restore(engine.running, engine.uuid, version=version)
             else:
                 current_engine.update(engine.running, engine.uuid, version=version)
 
