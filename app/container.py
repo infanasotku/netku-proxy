@@ -2,7 +2,7 @@ from typing import Awaitable, TypeVar
 
 from dependency_injector import providers, containers
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from faststream.rabbit import RabbitBroker, RabbitQueue, utils
+from faststream.rabbit import RabbitBroker, RabbitQueue
 from faststream.redis import RedisBroker
 
 from app.services.engine import EngineService
@@ -13,50 +13,12 @@ from app.infra.grpc.engine import create_grpc_manager
 from app.infra.grpc.channel import generate_create_channel_context
 from app.infra.rabbit.publisher import RabbitOutboxPublisher
 from app.infra.rabbit import queues
-
-
-async def get_rabbit_broker(dsn: str, *, virtualhost: str | None = None):
-    if virtualhost is not None and virtualhost.startswith("/"):
-        virtualhost = "/" + virtualhost
-    broker = RabbitBroker(
-        dsn,
-        virtualhost=virtualhost,
-        publisher_confirms=True,
-        # Heartbeat interval set to 20 seconds to balance timely detection of dead connections
-        # and avoid excessive network traffic. This value helps maintain connection reliability
-        # without causing unnecessary disconnects due to transient network issues.
-        client_properties=utils.RabbitClientProperties(heartbeat=20),
-    )
-    await broker.connect()
-    try:
-        yield broker
-    finally:
-        await broker.stop()
+from app.infra.redis.broker import get_redis, get_redis_broker
+from app.infra.rabbit.broker import get_rabbit_broker
 
 
 def get_rabbit_publisher(broker: RabbitBroker, *, queue: RabbitQueue):
     return broker.publisher(queue)
-
-
-async def get_redis_broker(dsn: str, *, db: int = 0):
-    broker = RedisBroker(
-        dsn,
-        db=db,
-        health_check_interval=10,
-        retry_on_timeout=True,
-        # Socket options
-        socket_connect_timeout=5,
-        socket_keepalive=True,
-    )
-    await broker.connect()
-    try:
-        yield broker
-    finally:
-        await broker.stop()
-
-
-async def get_redis(broker: RedisBroker):
-    return await broker.connect()
 
 
 ResourceT = TypeVar("ResourceT")
@@ -94,6 +56,7 @@ class Container(containers.DeclarativeContainer):
         get_redis_broker,  # type: ignore
         config.redis.dsn,
         db=config.redis.db,
+        logger=logger,
     )
     redis = providers.Singleton(
         get_redis,
