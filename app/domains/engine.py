@@ -45,7 +45,7 @@ class EngineRestored(DomainEvent):
     status: EngineStatus
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Engine(Domain):
     id: UUID
     uuid: UUID | None  # uuid from engine
@@ -65,10 +65,17 @@ class Engine(Domain):
         if not self._is_newer(version):
             return
 
+        old_hash = hash(self)
+
         status = EngineStatus.ACTIVE if running else EngineStatus.READY
         self.status = status
         self.uuid = uuid
         self.version = version
+
+        new_hash = hash(self)
+
+        if old_hash == new_hash:
+            return
 
         event = EngineUpdated(
             aggregate_id=self.id,
