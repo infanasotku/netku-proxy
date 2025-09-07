@@ -1,5 +1,5 @@
-from collections.abc import Awaitable
 from contextlib import asynccontextmanager
+import json
 from logging import Logger
 from typing import cast
 from uuid import UUID
@@ -11,8 +11,8 @@ from faststream.redis.message import UnifyRedisMessage
 from faststream.broker.message import AckStatus
 from dependency_injector.wiring import inject, Provide
 from redis.asyncio import Redis
-from pydantic import BaseModel
-from sentry_sdk import start_span, start_transaction
+from pydantic import BaseModel, computed_field
+from sentry_sdk import start_transaction
 
 from app.infra.redis.streams import (
     engine_stream,
@@ -37,6 +37,14 @@ router = RedisRouter()
 class RedisKeyEvent(BaseModel):
     event: str
     key: str
+    payload: str | None = None
+
+    @computed_field
+    @property
+    def parsed_payload(self) -> dict | None:
+        if self.payload:
+            return json.loads(self.payload)
+        return None
 
 
 KEY_PREFIX = "xrayEngines:"
@@ -96,6 +104,7 @@ async def handle_keyevents(
                     await handle_engine_info_changed(
                         engine_key=engine_key,
                         outbox_id=outbox_id,
+                        payload=cast(dict, key_event.parsed_payload),
                         version=version,
                     )
                 case _:
@@ -135,17 +144,12 @@ async def handle_engine_info_changed(
     *,
     engine_key: str,
     outbox_id: str,
+    payload: dict,
     version: Version,
     engine_service: EngineService = Provide[Container.engine_service],
-    logger: Logger = Provide[Container.logger],
 ):
-    try:
-        engine = await get_engine_info(engine_key, prefix=KEY_PREFIX)
-    except KeyError:
-        logger.warning(
-            f"Engine with ID {engine_key} already removed, processing [info changed] event end."
-        )
-        return
+    payload["id"] = engine_key
+    engine = EngineInfoDTO.model_validate_strings(payload)
 
     await engine_service.upsert(
         EngineCmd.model_validate(engine), caused_by=outbox_id, version=version
@@ -262,36 +266,3 @@ async def start_keyevents_reclaimer(redis: Redis, logger: Logger):
             await task  # Forward erros from task
         except asyncio.CancelledError:
             pass
-
-
-async def get_engine_info(
-    id: str,
-    *,
-    prefix: str,
-    redis: Redis = Provide[Container.redis],
-) -> EngineInfoDTO:
-    """
-    Retrieve engine information for a given engine ID and prefix.
-
-    Raises:
-        KeyError: If no engine information is found for the given ID.
-
-    Notes:
-        - Uses a retry mechanism for Redis operations.
-    """
-
-    @retry()
-    async def _process():
-        return await cast(Awaitable, redis.hgetall(redis_key))
-
-    with start_span(op="task", name="Get engine info") as s:
-        redis_key = f"{prefix}{id}"
-        s.set_tag("key", redis_key)
-
-        data = await _process()
-        if len(data) == 0:
-            raise KeyError(f"Engine with ID {id} not found")
-
-        payload = {k.decode(): data[k].decode() for k in data}
-        payload["id"] = id
-        return EngineInfoDTO.model_validate_strings(payload)

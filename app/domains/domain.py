@@ -5,7 +5,9 @@ from app.domains.event import DomainEvent
 
 @dataclass
 class Domain:
-    _events: list[DomainEvent] = field(default_factory=list, init=False, repr=False)
+    _events: list[DomainEvent] = field(
+        default_factory=list, init=False, repr=False, hash=False
+    )
 
     def pull_events(self) -> list[DomainEvent]:
         ev, self._events = self._events, []

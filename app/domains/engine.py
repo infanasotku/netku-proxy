@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
@@ -52,7 +52,7 @@ class Engine(Domain):
     status: EngineStatus
     created: datetime
     addr: str
-    version: Version
+    version: Version = field(hash=False)
 
     def _is_newer(self, version: Version):
         if version.ts < self.version.ts or (
