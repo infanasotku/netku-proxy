@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
@@ -39,14 +39,20 @@ class EngineUpdated(DomainEvent):
     new_status: EngineStatus
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
+class EngineRestored(DomainEvent):
+    uuid: UUID | None
+    status: EngineStatus
+
+
+@dataclass(unsafe_hash=True)
 class Engine(Domain):
     id: UUID
     uuid: UUID | None  # uuid from engine
     status: EngineStatus
     created: datetime
     addr: str
-    version: Version
+    version: Version = field(hash=False)
 
     def _is_newer(self, version: Version):
         if version.ts < self.version.ts or (
@@ -59,10 +65,17 @@ class Engine(Domain):
         if not self._is_newer(version):
             return
 
+        old_hash = hash(self)
+
         status = EngineStatus.ACTIVE if running else EngineStatus.READY
         self.status = status
         self.uuid = uuid
         self.version = version
+
+        new_hash = hash(self)
+
+        if old_hash == new_hash:
+            return
 
         event = EngineUpdated(
             aggregate_id=self.id,
@@ -80,4 +93,15 @@ class Engine(Domain):
         self.version = version
 
         event = EngineDead(self.id, version.to_stream_id())
+        self._events.append(event)
+
+    def restore(self, running: bool, uuid: UUID | None = None, *, version: Version):
+        if not self._is_newer(version):
+            return
+
+        self.status = EngineStatus.ACTIVE if running else EngineStatus.READY
+        self.uuid = uuid
+        self.version = version
+
+        event = EngineRestored(self.id, version.to_stream_id(), uuid, self.status)
         self._events.append(event)
