@@ -58,7 +58,7 @@ events:
 
 # --- OUTBOX ---
 outbox:
-  version: "0.1.7"
+  version: "0.1.8"
   replicas: 2
   container:
     name: netku-proxy-outbox
