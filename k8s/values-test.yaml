@@ -11,5 +11,14 @@ config:
 
 # --- API ---
 api:
+  replicas: 1
   ingress:
     host: test.proxy.infanasotku.com
+
+# --- EVENTS ---
+events:
+  replicas: 1
+
+# --- OUTBOX ---
+outbox:
+  replicas: 1

@@ -1,8 +1,8 @@
-name: Deploy to Staging
+name: Deploy to test
 on:
   push:
     branches:
-      - main
+      - test
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
     name: Build and Push
     runs-on: ubuntu-latest
     needs: load-pr
-    environment: staging-deploy
+    environment: build
     if: |
       contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'events') ||
       contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'api') ||
@@ -41,13 +41,13 @@ jobs:
           push: true
           tags: |
             ${{ vars.REGISTRY_URL }}/netku/netku-proxy:${{ github.sha }}
-            ${{ vars.REGISTRY_URL }}/netku/netku-proxy:staging
+            ${{ vars.REGISTRY_URL }}/netku/netku-proxy:test
 
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     needs: [build-and-push, load-pr]
-    environment: staging-deploy
+    environment: deploy
     if: |
       always() && 
       (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') &&
@@ -64,10 +64,12 @@ jobs:
         run: |
           ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
             cd ${{ secrets.PROJECT_DIR }}
+            git fetch
+            git checkout test
             git pull
 
-            sops -d k8s/secrets-staging.yaml > k8s/temp-secrets.yaml && \
-            helm upgrade --install netku-proxy-staging -f k8s/values-staging.yaml \
-            --set container.tag=staging --namespace netku-staging k8s \
+            sops -d k8s/secrets-test.yaml > k8s/temp-secrets.yaml && \
+            helm upgrade --install netku-proxy-test -f k8s/values-test.yaml \
+            --set container.tag=test --namespace netku-test k8s \
             && rm k8s/temp-secrets.yaml
           EOF
