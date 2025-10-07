@@ -1,6 +1,6 @@
-environment: staging
+environment: test
 container:
-  tag: staging
+  tag: test
 
 config:
   POSTGRES__DB_NAME: netku_debug

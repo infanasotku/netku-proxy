@@ -16,7 +16,7 @@ jobs:
   build-and-push:
     name: Prepare :latest image
     runs-on: ubuntu-latest
-    environment: staging-deploy
+    environment: build
     needs: load-pr
     if: |
       contains(fromJson(needs.load-pr.outputs.pr_data).labels.*.name, 'events') ||
@@ -83,9 +83,9 @@ jobs:
             && rm k8s/temp-secrets.yaml
           EOF
 
-      - name: Uninstall staging via SSH
+      - name: Uninstall test via SSH
         run: |
           ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
             cd ${{ secrets.PROJECT_DIR }}
-            helm uninstall --ignore-not-found netku-proxy-staging --namespace netku-staging
+            helm uninstall --ignore-not-found netku-proxy-test --namespace netku-test
           EOF
