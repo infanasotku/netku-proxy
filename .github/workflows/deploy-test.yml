@@ -64,6 +64,8 @@ jobs:
         run: |
           ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
             cd ${{ secrets.PROJECT_DIR }}
+            git fetch
+            git checkout test
             git pull
 
             sops -d k8s/secrets-test.yaml > k8s/temp-secrets.yaml && \
