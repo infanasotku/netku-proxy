@@ -1,148 +1,109 @@
-from collections.abc import Iterable
+from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import Any, Protocol, AsyncContextManager
+from typing import AsyncIterator, Generic, TypeVar
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from sentry_sdk import start_span
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    AsyncSessionTransaction,
+    async_sessionmaker,
+)
 
-from app.domains.event import DomainEvent
-from app.infra.database.repositories.engine import PostgresEngineRepository
-from app.infra.database.repositories.outbox import PostgresOutboxRepository
+from app.infra.database.repositories.engine import PgEngineRepository
+from app.infra.database.repositories.outbox import PgOutboxRepository
 
 
-class TransactionBoundary(Protocol):
-    """
-    **Transaction Boundary** protocol.
+class PgUnitOfWorkContext:
+    """Lightweight holder for a single DB transaction context.
 
-    Defines the minimal API to demarcate a database transaction.
-
-    Responsibilities
-    ----------------
-    - Provide `begin()` yielding an async context manager that encloses a *single* database transaction.
-    - Ensure that all work inside the context either **commits** or **rolls back** together.
-    - Accept an optional `caused_by` correlation key so callers can pass idempotency context (e.g. inbound message id) — the implementation may propagate it to outbox/internals to keep keys stable.
-
-    Notes
-    -----
-    - Keep transactions short — do not perform network I/O while the transaction is open.
-    - This protocol does **not** prescribe event buffering; that is the role of `DomainEventsBuffer`.
+    Contains the opened `AsyncSession` and the in-flight SQLAlchemy transaction.
+    Concrete UnitOfWork implementations can subclass this context to expose
+    repository gateways bound to the `session` (e.g. `inbox`, `users`, etc.).
     """
 
-    def begin(self, *, caused_by: str | None = None) -> AsyncContextManager[Any]: ...
+    def __init__(
+        self, *, session: AsyncSession, transaction: AsyncSessionTransaction
+    ) -> None:
+        self._session = session
+        self._transaction = transaction
 
 
-class DomainEventsBuffer(Protocol):
-    """
-    **Domain Events Buffer** protocol.
-
-    A tiny interface for collecting `DomainEvent` instances during a use-case.
-    Implementations persist the collected events into the **outbox** table *right before commit* of the surrounding transaction (Transactional Outbox).
-
-    Responsibilities
-    ----------------
-    - Provide `collect(events)` to enqueue one or more events.
-    - De-duplicate identical events within the same UoW instance (recommended).
-
-    Notes
-    -----
-    - This protocol does **not** start or commit transactions — pair it with `TransactionBoundary` in concrete UoW implementations.
-    """
-
-    def collect(self, events: Iterable[DomainEvent]) -> None:
-        """Enqueue domain events to be written to the outbox atomically with state changes."""
+ContextT = TypeVar("ContextT", bound=PgUnitOfWorkContext)
 
 
-class PostgresEngineUnitOfWork(TransactionBoundary, DomainEventsBuffer):
-    """
-    PostgreSQL implementation of a Unit of Work that combines:
+class PgUnitOfWork(ABC, Generic[ContextT]):
+    """Minimal API to demarcate a single database transaction.
 
-    - `TransactionBoundary` — opens/closes an async SQLAlchemy transaction; and
-    - `DomainEventsBuffer` — buffers domain events and flushes them to the outbox just before commit.
+    What it provides
+    - Opens a new AsyncSession and transaction and returns a context.
+    - `begin()` is an async context manager that yields a context object
+      (a `PgUnitOfWorkContext` or a subclass) and guarantees that all work
+      inside the block commits atomically or rolls back on error.
 
-    Also supports idempotency by accepting `caused_by` in `begin()` and passing it to the outbox repository.
+    Usage
+    >>> async with uow.begin() as ctx:
+    ...     # use repositories exposed by the concrete context
+    ...     await ctx.inbox.try_record(...)
     """
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         super().__init__()
         self._session_factory = session_factory
-        self._events: list[DomainEvent] = []
-        self._caused_by: str | None = None
 
-    async def _start(self, caused_by=None):
-        self._caused_by = caused_by
-        self._session = self._session_factory()
-        self._transaction = await self._session.begin()
+    @abstractmethod
+    def _make_context(
+        self, *, session: AsyncSession, transaction: AsyncSessionTransaction
+    ) -> ContextT: ...
 
-        self._engine = PostgresEngineRepository(self._session)
-        self._outbox = PostgresOutboxRepository(self._session)
+    async def _start(self) -> ContextT:
+        session = self._session_factory()
+        transaction = await session.begin()
+        return self._make_context(session=session, transaction=transaction)
 
-    async def _finish(self, exc: Exception | None):
+    async def _finish(self, exc: Exception | None, *, ctx: ContextT):
         try:
             if exc is None:
-                await self._flush_outbox()
-
-                await self._transaction.commit()
+                await ctx._transaction.commit()
             else:
-                await self._transaction.rollback()
+                raise exc
         except Exception:
-            await self._transaction.rollback()
+            try:
+                await ctx._session.rollback()
+            except Exception:
+                pass
             raise
         finally:
-            await self._session.close()
-
-    async def _flush_outbox(self):
-        with start_span(op="db", name="Flush engine outbox") as span:
-            span.set_tag("events_count", len(self._events))
-
-            if len(self._events) == 0:
-                return
-            await self._outbox.store(self._events, caused_by=self._caused_by)
-            self._events.clear()
+            await ctx._session.close()
 
     @asynccontextmanager
-    async def begin(self, *, caused_by=None):
-        with start_span(op="db", name="Begin engine UOW") as span:
-            span.set_tag("caused_by", caused_by)
+    async def begin(self) -> AsyncIterator[ContextT]:
+        """Open a transaction and yield a UnitOfWork context.
 
-            await self._start(caused_by)
+        Guarantees commit on normal exit and rollback on exception, and always
+        closes the session. The yielded context may be a specialized subclass
+        exposing repositories.
+        """
+        with start_span(op="db", name="UOW transaction"):
+            ctx = await self._start()
             try:
-                yield self
+                yield ctx
             except Exception as e:
-                await self._finish(e)
-                raise
+                await self._finish(e, ctx=ctx)
             else:
-                await self._finish(None)
-
-    def collect(self, events):
-        self._events.extend(events)
-
-    @property
-    def engines(self):
-        return self._engine
+                await self._finish(None, ctx=ctx)
 
 
-class PostgresOutboxUnitOfWork(TransactionBoundary):
-    """
-    Thin transactional boundary used by the outbox replayer/publisher.
+class PgEngineUnitOfWorkContext(PgUnitOfWorkContext):
+    def __init__(
+        self, *, session: AsyncSession, transaction: AsyncSessionTransaction
+    ) -> None:
+        super().__init__(session=session, transaction=transaction)
+        self.outbox = PgOutboxRepository(session)
+        self.engines = PgEngineRepository(session)
 
-    It implements only `TransactionBoundary` — no domain-event buffering.
-    """
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
-        super().__init__()
-        self._session_factory = session_factory
-
-    @property
-    def outbox(self):
-        return self._outbox
-
-    @asynccontextmanager
-    async def begin(self, *, caused_by: str | None = None):
-        with start_span(op="db", name="Begin outbox UOW"):
-            session = self._session_factory()
-            try:
-                async with session.begin():
-                    self._outbox = PostgresOutboxRepository(session)
-                    yield self
-            finally:
-                await session.close()
+class PgEngineUnitOfWork(PgUnitOfWork[PgEngineUnitOfWorkContext]):
+    def _make_context(
+        self, *, session: AsyncSession, transaction: AsyncSessionTransaction
+    ) -> PgEngineUnitOfWorkContext:
+        return PgEngineUnitOfWorkContext(session=session, transaction=transaction)

@@ -1,18 +1,18 @@
+import json
 from datetime import datetime, timezone
 from uuid import NAMESPACE_URL, UUID, uuid5
-import json
 
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy import and_, select, update
 from sentry_sdk import start_span
+from sqlalchemy import and_, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.infra.database.repositories.base import PostgresRepository
 from app.domains.event import DomainEvent
 from app.infra.database.models import OutboxRecord
+from app.infra.database.repositories.base import PostgresRepository
 from app.schemas.outbox import OutboxDTO
 
 
-class PostgresOutboxRepository(PostgresRepository):
+class PgOutboxRepository(PostgresRepository):
     async def store(
         self, events: list[DomainEvent], *, caused_by: str | None = None
     ) -> None:
