@@ -48,28 +48,28 @@ events:
     args:
       [
         "app.entrypoints.events:app",
-      "--workers",
-      "1",
-      "--host",
-      "0.0.0.0",
-      "--port",
-      "5101",
-    ]
+        "--workers",
+        "1",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5101",
+      ]
 
 # --- OUTBOX ---
 outbox:
-  version: "0.1.8"
+  version: "0.1.9"
   replicas: 2
   container:
     name: netku-proxy-outbox
     port: 5102
     args:
       [
-        "app.entrypoints.outbox_relay:app",
-      "--workers",
-      "1",
-      "--host",
-      "0.0.0.0",
-      "--port",
-      "5102",
-    ]
+        "app.entrypoints.outbox:app",
+        "--workers",
+        "1",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5102",
+      ]
