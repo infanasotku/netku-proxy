@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from app.domains.engine import Engine, EngineStatus
-from app.infra.database.uow import PgEngineUnitOfWork
+from app.infra.database.uow import PgEngineUnitOfWorkContext, PgUnitOfWork
 from app.infra.grpc.engine import GRPCEngineManager
 from app.schemas.engine import EngineCmd
 from app.services.exceptions.engine import EngineDeadError, EngineNotExistError
@@ -20,7 +20,9 @@ class EngineService:
     - Collect domain events into the outbox with `uow.collect`.
     """
 
-    def __init__(self, uow: PgEngineUnitOfWork, manager: GRPCEngineManager):
+    def __init__(
+        self, uow: PgUnitOfWork[PgEngineUnitOfWorkContext], manager: GRPCEngineManager
+    ):
         self._uow = uow
         self._manager = manager
 

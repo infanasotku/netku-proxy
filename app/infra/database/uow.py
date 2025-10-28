@@ -93,12 +93,19 @@ class PgUnitOfWork(ABC, Generic[ContextT]):
                 await self._finish(None, ctx=ctx)
 
 
-class PgEngineUnitOfWorkContext(PgUnitOfWorkContext):
+class PgOutboxUnitOfWorkContext(PgUnitOfWorkContext):
     def __init__(
         self, *, session: AsyncSession, transaction: AsyncSessionTransaction
     ) -> None:
         super().__init__(session=session, transaction=transaction)
         self.outbox = PgOutboxRepository(session)
+
+
+class PgEngineUnitOfWorkContext(PgOutboxUnitOfWorkContext):
+    def __init__(
+        self, *, session: AsyncSession, transaction: AsyncSessionTransaction
+    ) -> None:
+        super().__init__(session=session, transaction=transaction)
         self.engines = PgEngineRepository(session)
 
 
