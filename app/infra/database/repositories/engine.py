@@ -1,15 +1,15 @@
 from uuid import UUID
 
+from sentry_sdk import start_span
 from sqlalchemy import literal_column, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sentry_sdk import start_span
 
-from app.infra.database.repositories.base import PostgresRepository
 from app.domains.engine import Engine, Version
 from app.infra.database.models import Engine as EngineModel
+from app.infra.database.repositories.base import PostgresRepository
 
 
-class PostgresEngineRepository(PostgresRepository):
+class PgEngineRepository(PostgresRepository):
     async def get_for_update(self, engine_id: UUID) -> Engine | None:
         """
         Retrieve the **current persistent snapshot** of an `Engine` aggregate

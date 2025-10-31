@@ -22,4 +22,3 @@ QUEUE_ARGS = {
 }
 
 proxy_engine_queue = RabbitQueue(name="proxy_engine_queue", **QUEUE_ARGS)
-scope_info_queue = RabbitQueue(name="client_scope_queue")  # Readonly queue
