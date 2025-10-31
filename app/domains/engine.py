@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import Self
 from uuid import UUID
 
-from app.domains.event import DomainEvent
 from app.domains.domain import Domain
+from app.domains.event import DomainEvent
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,11 @@ class Version:
 
     def to_stream_id(self) -> str:
         return f"{self.ts}-{self.seq}"
+
+    def is_newer(self, version: Self):
+        if version.ts < self.ts or (version.ts == self.ts and version.seq <= self.seq):
+            return False
+        return True
 
 
 class EngineStatus(StrEnum):
@@ -54,15 +60,8 @@ class Engine(Domain):
     addr: str
     version: Version = field(hash=False)
 
-    def _is_newer(self, version: Version):
-        if version.ts < self.version.ts or (
-            version.ts == self.version.ts and version.seq <= self.version.seq
-        ):
-            return False
-        return True
-
     def update(self, running: bool, uuid: UUID | None = None, *, version: Version):
-        if not self._is_newer(version):
+        if not self.version.is_newer(version):
             return
 
         old_hash = hash(self)
@@ -86,7 +85,7 @@ class Engine(Domain):
         self._events.append(event)
 
     def remove(self, version: Version):
-        if not self._is_newer(version):
+        if not self.version.is_newer(version):
             return
 
         self.status = EngineStatus.DEAD
@@ -96,7 +95,7 @@ class Engine(Domain):
         self._events.append(event)
 
     def restore(self, running: bool, uuid: UUID | None = None, *, version: Version):
-        if not self._is_newer(version):
+        if not self.version.is_newer(version):
             return
 
         self.status = EngineStatus.ACTIVE if running else EngineStatus.READY

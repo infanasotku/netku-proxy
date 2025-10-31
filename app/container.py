@@ -1,20 +1,20 @@
 from typing import Awaitable, TypeVar
 
-from dependency_injector import providers, containers
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from dependency_injector import containers, providers
 from faststream.rabbit import RabbitBroker, RabbitQueue
 from faststream.redis import RedisBroker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.infra.database.uow import PgEngineUnitOfWork
+from app.infra.grpc.channel import generate_create_channel_context
+from app.infra.grpc.engine import create_grpc_manager
+from app.infra.logging import logger
+from app.infra.rabbit import queues
+from app.infra.rabbit.broker import get_rabbit_broker
+from app.infra.rabbit.publisher import RabbitOutboxPublisher
+from app.infra.redis.broker import get_redis, get_redis_broker
 from app.services.engine import EngineService
 from app.services.outbox import OutboxService
-from app.infra.logging import logger
-from app.infra.database.uow import PostgresEngineUnitOfWork, PostgresOutboxUnitOfWork
-from app.infra.grpc.engine import create_grpc_manager
-from app.infra.grpc.channel import generate_create_channel_context
-from app.infra.rabbit.publisher import RabbitOutboxPublisher
-from app.infra.rabbit import queues
-from app.infra.redis.broker import get_redis, get_redis_broker
-from app.infra.rabbit.broker import get_rabbit_broker
 
 
 def get_rabbit_publisher(broker: RabbitBroker, *, queue: RabbitQueue):
@@ -80,16 +80,15 @@ class Container(containers.DeclarativeContainer):
     engine_manager = ApiResource(create_grpc_manager, create_channel_context)
     rabbit_op = providers.Singleton(RabbitOutboxPublisher, rabbit_publisher)
 
-    engine_uow = providers.Factory(PostgresEngineUnitOfWork, async_sessionmaker)
-    outbox_uow = providers.Factory(PostgresOutboxUnitOfWork, async_sessionmaker)
+    uow = providers.Factory(PgEngineUnitOfWork, async_sessionmaker)
 
     engine_service = providers.Factory[Awaitable[EngineService]](
         EngineService,  # type: ignore
-        engine_uow,
+        uow,
         engine_manager,
     )
     outbox_service = providers.Factory[Awaitable[OutboxService]](
         OutboxService,  # type: ignore
-        outbox_uow,
+        uow,
         rabbit_op,
     )
