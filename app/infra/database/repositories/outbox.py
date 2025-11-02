@@ -7,7 +7,7 @@ from sqlalchemy import and_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.domains.event import DomainEvent
-from app.infra.database.models import OutboxRecord
+from app.infra.database.models import Outbox
 from app.infra.database.repositories.base import PostgresRepository
 from app.schemas.outbox import OutboxDTO
 
@@ -51,7 +51,7 @@ class PgOutboxRepository(PostgresRepository):
                 caused_by = caused_by if caused_by is not None else str(oid)
 
                 stmt = (
-                    pg_insert(OutboxRecord)
+                    pg_insert(Outbox)
                     .values(
                         id=oid,
                         caused_by=caused_by,
@@ -74,11 +74,11 @@ class PgOutboxRepository(PostgresRepository):
         """
         with start_span(op="db", name="Claim outbox events") as span:
             stmt = (
-                select(OutboxRecord)
+                select(Outbox)
                 .where(
                     and_(
-                        OutboxRecord.published == False,  # noqa: E712
-                        OutboxRecord.attempts < max_attempts,
+                        Outbox.fanned_out == False,  # noqa: E712
+                        Outbox.attempts < max_attempts,
                     )
                 )
                 .with_for_update(skip_locked=True)
@@ -111,12 +111,12 @@ class PgOutboxRepository(PostgresRepository):
             span.set_tag("outbox.id", str(outbox_id))
 
             stmt = (
-                update(OutboxRecord)
-                .where(OutboxRecord.id == outbox_id)
+                update(Outbox)
+                .where(Outbox.id == outbox_id)
                 .values(
                     published=True,
                     published_at=datetime.now(timezone.utc),
-                    attempts=OutboxRecord.attempts + 1,
+                    attempts=Outbox.attempts + 1,
                 )
             )
             await self._session.execute(stmt)
@@ -130,8 +130,8 @@ class PgOutboxRepository(PostgresRepository):
             span.set_tag("outbox.id", str(outbox_id))
 
             stmt = (
-                update(OutboxRecord)
-                .where(OutboxRecord.id == outbox_id)
-                .values(attempts=OutboxRecord.attempts + 1)
+                update(Outbox)
+                .where(Outbox.id == outbox_id)
+                .values(attempts=Outbox.attempts + 1)
             )
             await self._session.execute(stmt)

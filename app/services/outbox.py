@@ -1,5 +1,5 @@
+from app.infra.aiogram.event import AiogramEventPublisher
 from app.infra.database.uow import PgOutboxUnitOfWorkContext, PgUnitOfWork
-from app.infra.rabbit.publisher import RabbitOutboxPublisher
 from app.schemas.outbox import OutboxProcessingResult
 
 
@@ -7,13 +7,13 @@ class OutboxService:
     def __init__(
         self,
         uow: PgUnitOfWork[PgOutboxUnitOfWorkContext],
-        publisher: RabbitOutboxPublisher,
+        event_publisher: AiogramEventPublisher,
         *,
         batch=200,
         max_publish_attempts=5,
     ) -> None:
         self._uow = uow
-        self._publisher = publisher
+        self._publisher = event_publisher
         self._batch = batch
         self._max_attempts = max_publish_attempts
 

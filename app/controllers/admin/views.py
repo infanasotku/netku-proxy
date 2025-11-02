@@ -1,15 +1,15 @@
 from logging import Logger
 from uuid import UUID
 
-from sqladmin import ModelView
-from sqladmin.filters import StaticValuesFilter, BooleanFilter
 from dependency_injector.wiring import Provide
 from sentry_sdk import get_current_scope, start_span
+from sqladmin import ModelView
+from sqladmin.filters import BooleanFilter, StaticValuesFilter
 
-from app.services.engine import EngineService
+from app.container import Container
 from app.domains.engine import EngineStatus
 from app.infra.database import models
-from app.container import Container
+from app.services.engine import EngineService
 
 
 class EngineView(ModelView, model=models.Engine):
@@ -84,18 +84,18 @@ class OutboxView(ModelView, model=models.OutboxRecord):
     can_export = True
 
     column_list = [
-        models.OutboxRecord.id,
-        models.OutboxRecord.caused_by,
-        models.OutboxRecord.created_at,
-        models.OutboxRecord.published,
-        models.OutboxRecord.published_at,
-        models.OutboxRecord.attempts,
-        models.OutboxRecord.body,
+        models.Outbox.id,
+        models.Outbox.caused_by,
+        models.Outbox.created_at,
+        models.Outbox.fanned_out,
+        models.Outbox.fanned_out_at,
+        models.Outbox.attempts,
+        models.Outbox.body,
     ]
 
     column_sortable_list = [
-        models.OutboxRecord.created_at,
-        models.OutboxRecord.published_at,
+        models.Outbox.created_at,
+        models.Outbox.fanned_out_at,
     ]
 
-    column_filters = [BooleanFilter(models.OutboxRecord.published)]
+    column_filters = [BooleanFilter(models.Outbox.fanned_out)]

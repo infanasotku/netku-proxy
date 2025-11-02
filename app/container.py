@@ -5,13 +5,12 @@ from faststream.rabbit import RabbitBroker, RabbitQueue
 from faststream.redis import RedisBroker
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.infra.aiogram import get_bot
+from app.infra.aiogram.event import AiogramEventPublisher
 from app.infra.database.uow import PgEngineUnitOfWork
 from app.infra.grpc.channel import generate_create_channel_context
 from app.infra.grpc.engine import create_grpc_manager
 from app.infra.logging import logger
-from app.infra.rabbit import queues
-from app.infra.rabbit.broker import get_rabbit_broker
-from app.infra.rabbit.publisher import RabbitOutboxPublisher
 from app.infra.redis.broker import get_redis, get_redis_broker
 from app.services.engine import EngineService
 from app.services.outbox import OutboxService
@@ -68,17 +67,13 @@ class Container(containers.DeclarativeContainer):
         with_cert=True,
         root_certificates=config.ssl.root_certificates,
     )
-    rabbit_broker = OutboxResource[Awaitable[RabbitBroker]](
-        get_rabbit_broker,  # type: ignore
-        config.rabbit.dsn,
-        virtualhost=config.rabbit_proxy_vhost,
-    )
-    rabbit_publisher = providers.Singleton(
-        get_rabbit_publisher, rabbit_broker, queue=queues.proxy_engine_queue
+    bot = providers.Singleton(
+        get_bot,
+        config.bot.token,
     )
 
     engine_manager = ApiResource(create_grpc_manager, create_channel_context)
-    rabbit_op = providers.Singleton(RabbitOutboxPublisher, rabbit_publisher)
+    event_publisher = providers.Singleton(AiogramEventPublisher, bot)
 
     uow = providers.Factory(PgEngineUnitOfWork, async_sessionmaker)
 
@@ -90,5 +85,5 @@ class Container(containers.DeclarativeContainer):
     outbox_service = providers.Factory[Awaitable[OutboxService]](
         OutboxService,  # type: ignore
         uow,
-        rabbit_op,
+        event_publisher,
     )
