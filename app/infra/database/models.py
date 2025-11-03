@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID as SQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.domains.engine import EngineStatus
+from app.infra.utils.time import now_utc
 
 uuidpk = Annotated[
     UUID, mapped_column(SQLUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -98,13 +99,13 @@ class Outbox(Base):
     )
     attempts: Mapped[int] = mapped_column(
         nullable=False,
-        default=0,
+        default=1,
     )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=now_utc,
     )
     fanned_out_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -113,6 +114,7 @@ class Outbox(Base):
     next_attempt_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        default=now_utc,
     )
 
     __table_args__ = (
@@ -151,8 +153,6 @@ class BotDeliveryTask(Base):
 
     Each row ties an `Outbox` record to a subscriber (via engine subscription),
     stores the rendered message, and tracks whether the bot has published it.
-    Retrying is handled by flipping `published` back to FALSE and clearing the
-    timestamp.
     """
 
     __tablename__ = "bot_delivery_tasks"
@@ -165,22 +165,31 @@ class BotDeliveryTask(Base):
     message: Mapped[str]
 
     published: Mapped[bool] = mapped_column(nullable=False, default=False)
+    attempts: Mapped[int] = mapped_column(
+        nullable=False,
+        default=1,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=now_utc,
     )
     published_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=now_utc,
     )
 
     __table_args__ = (
         # Fast batch pick-up for relay workers
         Index(
             "ix_bot_delivery_task_pending",
-            "published",
+            "next_attempt_at",
             postgresql_where=(Column("published", Boolean).is_(False)),  # Partial index
         ),
     )
