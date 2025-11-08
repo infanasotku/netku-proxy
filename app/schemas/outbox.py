@@ -30,6 +30,7 @@ class BotDeliveryTaskDTO(BaseSchema):
     id: UUID
     outbox_id: UUID
     subscription_id: UUID
+    attempts: int
 
 
 class PublishBotDeliveryTask(BaseSchema):

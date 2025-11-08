@@ -9,13 +9,13 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import BIGINT, JSONB
 from sqlalchemy.dialects.postgresql import UUID as SQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.domains.engine import EngineStatus
+from app.infra.database import constraints
 from app.infra.utils.time import now_utc
 
 uuidpk = Annotated[
@@ -55,7 +55,7 @@ class Engine(Base):
     version_timestamp: Mapped[int] = mapped_column(BIGINT, nullable=False)
     version_seq: Mapped[int] = mapped_column(nullable=False)
 
-    __table_args__ = (UniqueConstraint("version_timestamp", "version_seq"),)
+    __table_args__ = (constraints.engine_version_unique,)
 
 
 class Outbox(Base):
@@ -146,23 +146,23 @@ class EngineSubscription(Base):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     engine_id: Mapped[UUID] = mapped_column(ForeignKey("engines.id"), nullable=False)
 
+    event: Mapped[str]
+
 
 class BotDeliveryTask(Base):
     """
-    Fan-out unit representing a pending Telegram delivery.
+    Fan-out unit representing a pending delivery.
 
     Each row ties an `Outbox` record to a subscriber (via engine subscription),
     stores the rendered message, and tracks whether the bot has published it.
     """
 
-    __tablename__ = "bot_delivery_tasks"
+    __tablename__ = "delivery_tasks"
 
     outbox_id: Mapped[UUID] = mapped_column(ForeignKey("outbox.id"), nullable=False)
     subscription_id: Mapped[UUID] = mapped_column(
         ForeignKey("engine_subscriptions.id"), nullable=False
     )
-
-    message: Mapped[str]
 
     published: Mapped[bool] = mapped_column(nullable=False, default=False)
     attempts: Mapped[int] = mapped_column(
@@ -188,8 +188,9 @@ class BotDeliveryTask(Base):
     __table_args__ = (
         # Fast batch pick-up for relay workers
         Index(
-            "ix_bot_delivery_task_pending",
+            "ix_delivery_task_pending",
             "next_attempt_at",
             postgresql_where=(Column("published", Boolean).is_(False)),  # Partial index
         ),
+        constraints.bot_delivery_task_unique,
     )

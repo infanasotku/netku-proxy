@@ -7,11 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.infra.aiogram import get_bot
 from app.infra.aiogram.event import AiogramEventPublisher
-from app.infra.database.uow import PgEngineUnitOfWork
+from app.infra.database.uow import PgCommonUnitOfWork
 from app.infra.grpc.channel import generate_create_channel_context
 from app.infra.grpc.engine import create_grpc_manager
 from app.infra.logging import logger
 from app.infra.redis.broker import get_redis, get_redis_broker
+from app.services.billing import BillingService
 from app.services.engine import EngineService
 from app.services.outbox import OutboxService
 
@@ -75,8 +76,12 @@ class Container(containers.DeclarativeContainer):
     engine_manager = ApiResource(create_grpc_manager, create_channel_context)
     event_publisher = providers.Singleton(AiogramEventPublisher, bot)
 
-    uow = providers.Factory(PgEngineUnitOfWork, async_sessionmaker)
+    uow = providers.Factory(PgCommonUnitOfWork, async_sessionmaker)
 
+    billing_service = providers.Factory[Awaitable[BillingService]](
+        BillingService,  # type: ignore
+        uow,
+    )
     engine_service = providers.Factory[Awaitable[EngineService]](
         EngineService,  # type: ignore
         uow,
@@ -85,5 +90,6 @@ class Container(containers.DeclarativeContainer):
     outbox_service = providers.Factory[Awaitable[OutboxService]](
         OutboxService,  # type: ignore
         uow,
+        billing_service,
         event_publisher,
     )

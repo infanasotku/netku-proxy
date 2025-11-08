@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sentry_sdk import start_span
@@ -16,14 +16,11 @@ from app.schemas.outbox import OutboxDTO
 class PgOutboxRepository(PostgresRepository):
     async def store(self, events: list[DomainEvent], *, caused_by: str) -> None:
         """
-        Persist a **batch** of `DomainEvent` objects into the *outbox*
-        table/collection inside the **current transaction.
+        Persist a **batch** of `DomainEvent` inside the **current transaction.
 
         Args:
             events:
                 A list of domain events collected during the use-case execution.
-                The adapter must iterate the list **in order** and write each event
-                as an individual outbox record.
             caused_by:
                 Deduplication key (e.g. Redis ``stream_id`` of the
                 upstream message).
@@ -50,14 +47,10 @@ class PgOutboxRepository(PostgresRepository):
 
     async def claim_batch(self, batch: int, *, max_attempts: int) -> list[OutboxDTO]:
         """
-        Claims a batch of unpublished outbox records for processing.
+        Claim a batch of unprocessed outbox records.
+
         This method selects up to `batch` unpublished outbox records from the database,
         locking them for update and skipping any that are already locked by other transactions.
-        It then returns a list of `DomainEvent` instances created from the record bodies.
-
-        Args:
-            batch (int): The maximum number of outbox records to claim.
-            max_attempts (int): The maximum number of publish attempts for each record.
         """
         with start_span(op="db", name="claim_outbox_batch") as span:
             stmt = (
@@ -99,7 +92,7 @@ class PgOutboxRepository(PostgresRepository):
                 .where(Outbox.id == outbox_id)
                 .values(
                     fanned_out=True,
-                    fanned_out_at=datetime.now(timezone.utc),
+                    fanned_out_at=now_utc(),
                 )
             )
             await self._session.execute(stmt)
@@ -118,3 +111,12 @@ class PgOutboxRepository(PostgresRepository):
                 .values(attempts=Outbox.attempts + 1, next_attempt_at=next_attempt_at)
             )
             await self._session.execute(stmt)
+
+    async def extract_events(self, outbox_ids: list[UUID]) -> list[DomainEvent]:
+        with start_span(op="db", name="extract_outbox_events"):
+            stmt = select(Outbox.body).where(Outbox.id.in_(outbox_ids))
+            rows = await self._session.scalars(stmt)
+
+            events = [DomainEvent.from_dict(row) for row in rows]
+
+            return events

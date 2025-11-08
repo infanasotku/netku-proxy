@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import (
 
 from app.infra.database.repositories.engine import PgEngineRepository
 from app.infra.database.repositories.outbox import PgOutboxRepository
+from app.infra.database.repositories.subscription import PgSubscriptionRepository
+from app.infra.database.repositories.tasks import PgBotDeliveryTaskRepository
 
 
 class PgUnitOfWorkContext:
@@ -99,6 +101,7 @@ class PgOutboxUnitOfWorkContext(PgUnitOfWorkContext):
     ) -> None:
         super().__init__(session=session, transaction=transaction)
         self.outbox = PgOutboxRepository(session)
+        self.tasks = PgBotDeliveryTaskRepository(session)
 
 
 class PgEngineUnitOfWorkContext(PgOutboxUnitOfWorkContext):
@@ -109,8 +112,20 @@ class PgEngineUnitOfWorkContext(PgOutboxUnitOfWorkContext):
         self.engines = PgEngineRepository(session)
 
 
-class PgEngineUnitOfWork(PgUnitOfWork[PgEngineUnitOfWorkContext]):
+class PgBillingUnitOfWorkContext(PgUnitOfWorkContext):
+    def __init__(
+        self, *, session: AsyncSession, transaction: AsyncSessionTransaction
+    ) -> None:
+        super().__init__(session=session, transaction=transaction)
+        self.subscriptions = PgSubscriptionRepository(session)
+
+
+class PgCommonUnitOfWorkContext(PgBillingUnitOfWorkContext, PgEngineUnitOfWorkContext):
+    pass
+
+
+class PgCommonUnitOfWork(PgUnitOfWork[PgCommonUnitOfWorkContext]):
     def _make_context(
         self, *, session: AsyncSession, transaction: AsyncSessionTransaction
-    ) -> PgEngineUnitOfWorkContext:
-        return PgEngineUnitOfWorkContext(session=session, transaction=transaction)
+    ) -> PgCommonUnitOfWorkContext:
+        return PgCommonUnitOfWorkContext(session=session, transaction=transaction)

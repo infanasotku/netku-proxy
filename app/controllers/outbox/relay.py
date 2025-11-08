@@ -1,8 +1,8 @@
 import asyncio
-from logging import Logger
 from contextlib import asynccontextmanager
+from logging import Logger
 
-from dependency_injector.wiring import inject, Provide
+from dependency_injector.wiring import Provide, inject
 from sentry_sdk import start_transaction
 
 from app.container import Container
@@ -17,15 +17,10 @@ async def start_outbox_relay(logger: Logger, container: Container = Provide[Cont
             with start_transaction(
                 op="worker", name="WORK /outbox/process-batch"
             ) as tx:
-                result = await outbox_service.process_batch()
-                if len(result) == 0:
+                result = await outbox_service.process_outbox_batch()
+                if result == 0:
                     tx.set_tag("empty_batch", "1")
 
-                for r in result:
-                    if not r.success:
-                        logger.error(
-                            f"Outbox message with ID {r.record.id} failed to process, attempts: {r.attempts}, reason: {r.error}."
-                        )
             await asyncio.sleep(200 / 1000)
 
     async def _wrap():
