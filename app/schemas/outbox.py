@@ -19,3 +19,20 @@ class OutboxPublishResult(BaseSchema):
 
 class OutboxProcessingResult(OutboxPublishResult):
     attempts: int
+
+
+class CreateBotDeliveryTask(BaseSchema):
+    outbox_id: UUID
+    subscription_id: UUID
+
+
+class BotDeliveryTaskDTO(BaseSchema):
+    id: UUID
+    outbox_id: UUID
+    subscription_id: UUID
+
+
+class PublishBotDeliveryTask(BaseSchema):
+    event: DomainEvent
+
+    telegram_id: str
