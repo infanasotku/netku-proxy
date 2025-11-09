@@ -1,7 +1,6 @@
 from typing import Awaitable, TypeVar
 
 from dependency_injector import containers, providers
-from faststream.rabbit import RabbitBroker, RabbitQueue
 from faststream.redis import RedisBroker
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -15,11 +14,6 @@ from app.infra.redis.broker import get_redis, get_redis_broker
 from app.services.billing import BillingService
 from app.services.engine import EngineService
 from app.services.outbox import OutboxService
-
-
-def get_rabbit_publisher(broker: RabbitBroker, *, queue: RabbitQueue):
-    return broker.publisher(queue)
-
 
 ResourceT = TypeVar("ResourceT")
 
@@ -70,7 +64,7 @@ class Container(containers.DeclarativeContainer):
     )
     bot = providers.Singleton(
         get_bot,
-        config.bot.token,
+        config.aiogram.token,
     )
 
     engine_manager = ApiResource(create_grpc_manager, create_channel_context)
@@ -78,17 +72,17 @@ class Container(containers.DeclarativeContainer):
 
     uow = providers.Factory(PgCommonUnitOfWork, async_sessionmaker)
 
-    billing_service = providers.Factory[Awaitable[BillingService]](
-        BillingService,  # type: ignore
+    billing_service = providers.Factory(
+        BillingService,
         uow,
     )
-    engine_service = providers.Factory[Awaitable[EngineService]](
-        EngineService,  # type: ignore
+    engine_service = providers.Factory(
+        EngineService,
         uow,
         engine_manager,
     )
-    outbox_service = providers.Factory[Awaitable[OutboxService]](
-        OutboxService,  # type: ignore
+    outbox_service = providers.Factory(
+        OutboxService,
         uow,
         billing_service,
         event_publisher,

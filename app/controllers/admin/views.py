@@ -75,7 +75,7 @@ class EngineView(ModelView, model=models.Engine):
         return models.Engine()
 
 
-class OutboxView(ModelView, model=models.OutboxRecord):
+class OutboxView(ModelView, model=models.Outbox):
     name_plural = "Outbox"
 
     can_delete = False

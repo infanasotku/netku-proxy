@@ -102,12 +102,8 @@ class OutboxService(BotDeliveryTaskService):
             unhandled = []
             engine_delivery_tasks = []
             for rec in records:
-                match rec.event.name:
-                    case EngineUpdated.name:
-                        engine_delivery_tasks.append(rec)
-                    case EngineDead.name:
-                        engine_delivery_tasks.append(rec)
-                    case EngineRestored.name:
+                match rec.event:
+                    case EngineDead() | EngineRestored() | EngineUpdated():
                         engine_delivery_tasks.append(rec)
                     case _:
                         unhandled.append(rec)

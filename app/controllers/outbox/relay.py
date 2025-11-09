@@ -12,7 +12,7 @@ from app.container import Container
 @inject
 async def start_outbox_relay(logger: Logger, container: Container = Provide[Container]):
     async def _loop():
-        outbox_service = await container.outbox_service()
+        outbox_service = container.outbox_service()
         while True:
             with start_transaction(
                 op="worker", name="WORK /outbox/process-batch"
