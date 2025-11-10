@@ -77,9 +77,7 @@ class Container(containers.DeclarativeContainer):
         uow,
     )
     engine_service = providers.Factory(
-        EngineService,
-        uow,
-        engine_manager,
+        EngineService, uow, engine_manager, logger=logger
     )
     outbox_service = providers.Factory(
         OutboxService,
