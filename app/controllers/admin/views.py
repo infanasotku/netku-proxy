@@ -1,6 +1,7 @@
 from logging import Logger
 from uuid import UUID
 
+import wtforms
 from dependency_injector.wiring import Provide
 from fastapi.responses import RedirectResponse
 from sentry_sdk import get_current_scope
@@ -8,7 +9,7 @@ from sqladmin import ModelView, action
 from sqladmin.filters import BooleanFilter, StaticValuesFilter
 
 from app.container import Container
-from app.domains.engine import EngineStatus
+from app.domains.engine import EngineDead, EngineRestored, EngineStatus, EngineUpdated
 from app.infra.database import models
 from app.services.engine import EngineService
 
@@ -26,6 +27,7 @@ class EngineView(ModelView, model=models.Engine):
         models.Engine.addr,
         models.Engine.status,
         models.Engine.created,
+        models.Engine.subscriptions,
     ]
 
     form_columns = [models.Engine.uuid]
@@ -106,15 +108,7 @@ class OutboxView(ModelView, model=models.Outbox):
     can_edit = False
     can_export = True
 
-    column_list = [
-        models.Outbox.id,
-        models.Outbox.caused_by,
-        models.Outbox.created_at,
-        models.Outbox.fanned_out,
-        models.Outbox.fanned_out_at,
-        models.Outbox.attempts,
-        models.Outbox.body,
-    ]
+    column_list = "__all__"
 
     column_sortable_list = [
         models.Outbox.created_at,
@@ -122,3 +116,65 @@ class OutboxView(ModelView, model=models.Outbox):
     ]
 
     column_filters = [BooleanFilter(models.Outbox.fanned_out)]
+
+
+class BotDeliveryTaskView(ModelView, model=models.BotDeliveryTask):
+    name_plural = "Bot Delivery Tasks"
+
+    can_delete = False
+    can_create = False
+    can_edit = False
+    can_export = True
+
+    column_list = "__all__"
+
+    column_sortable_list = [models.BotDeliveryTask.created_at]
+
+    column_filters = [BooleanFilter(models.BotDeliveryTask.published)]
+
+
+class UserView(ModelView, model=models.User):
+    name_plural = "Users"
+
+    can_delete = True
+    can_create = True
+    can_edit = True
+    can_export = True
+
+    column_list = [
+        models.User.telegram_id,
+        models.User.description,
+        models.User.subscriptions,
+    ]
+
+    form_columns = [
+        models.User.telegram_id,
+        models.User.description,
+    ]
+
+
+engine_events = (EngineDead, EngineUpdated, EngineRestored)
+
+
+class EngineSubscriptionView(ModelView, model=models.EngineSubscription):
+    name_plural = "Engine Subscriptions"
+
+    can_delete = True
+    can_create = True
+    can_edit = True
+    can_export = True
+
+    column_list = [
+        models.EngineSubscription.user,
+        models.EngineSubscription.engine,
+        models.EngineSubscription.event,
+    ]
+
+    form_args = dict(
+        event=dict(
+            choices=[(ev.__name__, ev.__name__) for ev in engine_events],
+            coerce=str,
+        ),
+    )
+    form_overrides = dict(event=wtforms.SelectField)
+    form_columns = column_list

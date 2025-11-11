@@ -12,7 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import BIGINT, JSONB
 from sqlalchemy.dialects.postgresql import UUID as SQLUUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.domains.engine import EngineStatus
 from app.infra.database import constraints
@@ -55,7 +55,14 @@ class Engine(Base):
     version_timestamp: Mapped[int] = mapped_column(BIGINT, nullable=False)
     version_seq: Mapped[int] = mapped_column(nullable=False)
 
+    subscriptions: Mapped[list["EngineSubscription"]] = relationship(
+        back_populates="engine"
+    )
+
     __table_args__ = (constraints.engine_version_unique,)
+
+    def __str__(self) -> str:
+        return f"{self.id}_{self.addr}_{self.status}"
 
 
 class Outbox(Base):
@@ -137,6 +144,13 @@ class User(Base):
     telegram_id: Mapped[str] = mapped_column(nullable=False, unique=True)
     description: Mapped[str] = mapped_column(nullable=True)
 
+    subscriptions: Mapped[list["EngineSubscription"]] = relationship(
+        back_populates="user"
+    )
+
+    def __str__(self) -> str:
+        return self.description
+
 
 class EngineSubscription(Base):
     """Link table that records which users want updates from which engine."""
@@ -144,9 +158,18 @@ class EngineSubscription(Base):
     __tablename__ = "engine_subscriptions"
 
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user: Mapped[User] = relationship(
+        foreign_keys=[user_id], back_populates="subscriptions"
+    )
     engine_id: Mapped[UUID] = mapped_column(ForeignKey("engines.id"), nullable=False)
+    engine: Mapped[Engine] = relationship(
+        foreign_keys=[engine_id], back_populates="subscriptions"
+    )
 
     event: Mapped[str]
+
+    def __str__(self) -> str:
+        return f"{self.event}_{self.user}_{self.engine}"
 
 
 class BotDeliveryTask(Base):
