@@ -169,7 +169,7 @@ class EngineSubscription(Base):
     event: Mapped[str]
 
     def __str__(self) -> str:
-        return f"{self.event}_{self.user}_{self.engine}"
+        return f"{self.event}_{self.user_id}_{self.engine_id}"
 
 
 class BotDeliveryTask(Base):

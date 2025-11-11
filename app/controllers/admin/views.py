@@ -27,6 +27,9 @@ class EngineView(ModelView, model=models.Engine):
         models.Engine.addr,
         models.Engine.status,
         models.Engine.created,
+    ]
+    column_details_list = [
+        *column_list,
         models.Engine.subscriptions,
     ]
 
