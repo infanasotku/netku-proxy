@@ -40,7 +40,7 @@ class Container(containers.DeclarativeContainer):
         connect_args=providers.Dict(
             server_settings=providers.Dict(search_path=config.postgres.sql_schema)
         ),
-        pool_pre_ping=True,
+        pool_pre_ping=False,
         pool_recycle=3600,
     )
     async_sessionmaker = providers.Singleton(

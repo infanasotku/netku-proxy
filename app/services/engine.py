@@ -129,4 +129,7 @@ class EngineService:
         self._logger.info(f"Engine with ID [{id}] restarted.")
 
     async def remove_dead_engines(self):
-        pass
+        async with self._uow.begin() as uow:
+            self._logger.info("Removing dead engines...")
+            deleted = await uow.engines.remove_dead()
+            self._logger.info(f"Removed {deleted} dead engines.")

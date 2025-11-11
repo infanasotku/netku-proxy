@@ -1,10 +1,10 @@
 from uuid import UUID
 
 from sentry_sdk import start_span
-from sqlalchemy import literal_column, select, tuple_
+from sqlalchemy import delete, literal_column, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.domains.engine import Engine, Version
+from app.domains.engine import Engine, EngineStatus, Version
 from app.infra.database.models import Engine as EngineModel
 from app.infra.database.repositories.base import PostgresRepository
 
@@ -16,7 +16,7 @@ class PgEngineRepository(PostgresRepository):
         and **reserve it for exclusive write-access** for the remainder of the
         caller’s transactional context.
         """
-        with start_span(op="db", name="Get engine for update") as span:
+        with start_span(op="db", name="get_engine_for_update") as span:
             span.set_tag("engine_id", str(engine_id))
 
             stmt = (
@@ -56,7 +56,7 @@ class PgEngineRepository(PostgresRepository):
             bool: `True` if INSERT or UPDATE actually changed the persistent
             representation `False` otherwise.
         """
-        with start_span(op="db", name="Save engine") as span:
+        with start_span(op="db", name="save_engine") as span:
             span.set_tag("engine_id", str(engine.id))
 
             update_dict = dict(
@@ -88,14 +88,7 @@ class PgEngineRepository(PostgresRepository):
             return bool(row)
 
     async def get(self, engine_id: UUID) -> Engine | None:
-        """
-        Retrieve the current persistent snapshot of an `Engine` aggregate.
-
-        Unlike `get_for_update`, this method does **not** reserve the aggregate
-        for exclusive write access. It is intended for read-only operations and does
-        not participate in locking or transactional isolation.
-        """
-        with start_span(op="db", name="Get engine") as span:
+        with start_span(op="db", name="get_engine") as span:
             span.set_tag("engine_id", str(engine_id))
 
             stmt = select(EngineModel).where(EngineModel.id == engine_id)
@@ -111,3 +104,16 @@ class PgEngineRepository(PostgresRepository):
                 addr=row.addr,
                 version=Version(ts=row.version_timestamp, seq=row.version_seq),
             )
+
+    async def remove_dead(self) -> int:
+        with start_span(op="db", name="remove_dead_engines") as span:
+            stmt = (
+                delete(EngineModel)
+                .where(EngineModel.status == EngineStatus.DEAD)
+                .returning(1)
+            )
+            rows = await self._session.scalars(stmt)
+            deleted = len(rows.all())
+
+            span.set_tag("deleted_count", deleted)
+            return deleted

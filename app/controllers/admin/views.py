@@ -2,8 +2,9 @@ from logging import Logger
 from uuid import UUID
 
 from dependency_injector.wiring import Provide
-from sentry_sdk import get_current_scope, start_span
-from sqladmin import ModelView
+from fastapi.responses import RedirectResponse
+from sentry_sdk import get_current_scope
+from sqladmin import ModelView, action
 from sqladmin.filters import BooleanFilter, StaticValuesFilter
 
 from app.container import Container
@@ -51,7 +52,7 @@ class EngineView(ModelView, model=models.Engine):
         data,
         engine_service: EngineService = Provide[Container.engine_service],
         logger: Logger = Provide[Container.logger],
-    ):
+    ) -> models.Engine:
         scope = get_current_scope()
         path_format, _, _ = request.scope["path"].rpartition("/")
         path_format += "/{engine_id}"
@@ -60,19 +61,41 @@ class EngineView(ModelView, model=models.Engine):
         uuid = UUID(data["uuid"])
         id = UUID(pk)
 
-        with start_span(op="task", name="Restart engine") as span:
-            span.set_tag("engine_id", id.hex)
-
-            try:
-                await engine_service.restart(id, uuid=uuid)
-                logger.info(f"Engine with ID [{id}] restarted.")
-            except Exception:
-                logger.error(
-                    f"Error occured while restarting engine with ID {id}:",
-                )
-                raise
+        try:
+            await engine_service.restart(id, uuid=uuid)
+        except Exception:
+            logger.error(
+                f"Error occured while restarting engine with ID {id}:",
+            )
+            raise
 
         return models.Engine()
+
+    @action(
+        name="remove_dead_engines",
+        label="Remove dead engines",
+        confirmation_message="Are you sure?",
+        add_in_detail=False,
+        add_in_list=True,
+    )
+    async def remove_dead_engines(
+        self,
+        request,
+        engine_service: EngineService = Provide[Container.engine_service],
+        logger: Logger = Provide[Container.logger],
+    ):
+        scope = get_current_scope()
+        path_format, _, _ = request.scope["path"].rpartition("/")
+        path_format += "/{action}"
+        scope.set_transaction_name(f"{request.method} {path_format}")
+
+        try:
+            await engine_service.remove_dead_engines()
+        except Exception:
+            logger.error("Error occurred while removing dead engines.")
+            raise
+
+        return RedirectResponse(request.url_for("admin:list", identity=self.identity))
 
 
 class OutboxView(ModelView, model=models.Outbox):
