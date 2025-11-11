@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Generic, TypeVar
@@ -62,13 +63,13 @@ class PgUnitOfWork(ABC, Generic[ContextT]):
         transaction = await session.begin()
         return self._make_context(session=session, transaction=transaction)
 
-    async def _finish(self, exc: Exception | None, *, ctx: ContextT):
+    async def _finish(self, exc: BaseException | None, *, ctx: ContextT):
         try:
             if exc is None:
                 await ctx._transaction.commit()
             else:
                 raise exc
-        except Exception:
+        except BaseException:
             try:
                 await ctx._session.rollback()
             except Exception:
@@ -89,10 +90,10 @@ class PgUnitOfWork(ABC, Generic[ContextT]):
             ctx = await self._start()
             try:
                 yield ctx
-            except Exception as e:
-                await self._finish(e, ctx=ctx)
+            except BaseException as e:  # With CancelledError
+                await asyncio.shield(self._finish(e, ctx=ctx))
             else:
-                await self._finish(None, ctx=ctx)
+                await asyncio.shield(self._finish(None, ctx=ctx))
 
 
 class PgOutboxUnitOfWorkContext(PgUnitOfWorkContext):
