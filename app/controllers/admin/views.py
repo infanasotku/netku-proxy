@@ -147,7 +147,10 @@ class UserView(ModelView, model=models.User):
     column_list = [
         models.User.telegram_id,
         models.User.description,
-        models.User.subscriptions,
+    ]
+    column_details_list = [
+        *column_list,
+        models.Engine.subscriptions,
     ]
 
     form_columns = [

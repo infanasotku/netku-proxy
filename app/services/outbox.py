@@ -1,4 +1,5 @@
 from datetime import timedelta
+from logging import Logger
 
 from app.domains.engine import EngineDead, EngineRestored, EngineUpdated
 from app.infra.aiogram.event import AiogramEventPublisher
@@ -19,6 +20,7 @@ class BotDeliveryTaskService:
         billing_service: BillingService,
         event_publisher: AiogramEventPublisher,
         *,
+        logger: Logger,
         batch=200,
         max_publish_attempts=5,
     ) -> None:
@@ -27,10 +29,20 @@ class BotDeliveryTaskService:
         self._billing = billing_service
         self._batch = batch
         self._max_attempts = max_publish_attempts
+        self._logger = logger
 
-    async def spawn_engine_delivery_tasks(self, records: list[OutboxDTO]):
+    async def _spawn_engine_delivery_tasks(
+        self,
+        records: list[OutboxDTO],
+        *,
+        ctx: PgOutboxUnitOfWorkContext,
+    ):
         name_ids_dict = await self._billing.get_subscriptions_for_events(
             [rec.event for rec in records]
+        )
+
+        self._logger.info(
+            f"Spawning engine delivery tasks for {len(records)} records..."
         )
 
         tasks = []
@@ -43,8 +55,12 @@ class BotDeliveryTaskService:
                 )
             )
 
-        async with self._uow.begin() as ctx:
-            await ctx.tasks.store(tasks)
+        self._logger.info(f"Spawned {len(tasks)} engine delivery tasks")
+
+        if not tasks:
+            return
+
+        await ctx.tasks.store(tasks)
 
     async def process_engine_delivery_tasks(self):
         async with self._uow.begin() as uow:
@@ -80,6 +96,7 @@ class OutboxService(BotDeliveryTaskService):
         billing_service: BillingService,
         event_publisher: AiogramEventPublisher,
         *,
+        logger: Logger,
         batch=200,
         max_publish_attempts=5,
     ) -> None:
@@ -87,6 +104,7 @@ class OutboxService(BotDeliveryTaskService):
             uow,
             billing_service,
             event_publisher,
+            logger=logger,
             batch=batch,
             max_publish_attempts=max_publish_attempts,
         )
@@ -96,8 +114,11 @@ class OutboxService(BotDeliveryTaskService):
             records = await uow.outbox.claim_batch(
                 self._batch, max_attempts=self._max_attempts
             )
+
             if not records:
                 return 0
+
+            self._logger.info(f"Processing outbox batch with {len(records)} records...")
 
             unhandled = []
             engine_delivery_tasks = []
@@ -109,13 +130,15 @@ class OutboxService(BotDeliveryTaskService):
                         unhandled.append(rec)
 
             try:
-                await self.spawn_engine_delivery_tasks(engine_delivery_tasks)
+                await self._spawn_engine_delivery_tasks(engine_delivery_tasks, ctx=uow)
                 await self._mark_fanned_out(engine_delivery_tasks, uow=uow)
             except Exception:
                 await self._mark_failed(engine_delivery_tasks, uow=uow)
 
             if len(engine_delivery_tasks) != len(records):
                 raise NotImplementedError("Unhandled event types found")
+
+            self._logger.info(f"Processed outbox batch with {len(records)} records")
 
             return len(records)
 
