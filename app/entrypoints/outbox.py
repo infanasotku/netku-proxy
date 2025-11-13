@@ -6,7 +6,6 @@ from sentry_sdk.types import Event
 from app.container import Container, OutboxResource
 from app.controllers.outbox import relay
 from app.infra.config import settings
-from app.infra.logging import logger
 from app.infra.sentry import init_sentry
 
 
@@ -26,7 +25,7 @@ def create_lifespan(container: Container):
     async def lifespan(_: FastAPI):
         await _maybe_future(container.init_resources(OutboxResource))
 
-        async with relay.start_outbox_relay(logger):
+        async with relay.start_outbox_relay():
             yield
 
         await _maybe_future(container.shutdown_resources(OutboxResource))

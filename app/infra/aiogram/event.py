@@ -1,5 +1,7 @@
 import asyncio
+import traceback
 from collections import Counter
+from logging import Logger
 
 from sentry_sdk import start_span
 
@@ -9,8 +11,9 @@ from app.schemas.outbox import PublishBotDeliveryTask
 
 
 class AiogramEventPublisher:
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: Bot, *, logger: Logger):
         self._bot = bot
+        self._logger = logger
 
     async def publish_batch(self, tasks: list[PublishBotDeliveryTask]) -> list[bool]:
         with start_span(op="task", name="publish_events_batch") as span:
@@ -32,4 +35,5 @@ class AiogramEventPublisher:
             )
             return True
         except Exception:
+            self._logger.error(f"Failed to publish event: {traceback.format_exc()}")
             return False
