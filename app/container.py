@@ -68,7 +68,7 @@ class Container(containers.DeclarativeContainer):
     )
 
     engine_manager = ApiResource(create_grpc_manager, create_channel_context)
-    event_publisher = providers.Singleton(AiogramEventPublisher, bot)
+    event_publisher = providers.Singleton(AiogramEventPublisher, bot, logger=logger)
 
     uow = providers.Factory(PgCommonUnitOfWork, async_sessionmaker)
 
