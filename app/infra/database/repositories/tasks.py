@@ -76,8 +76,8 @@ class PgBotDeliveryTaskRepository(PostgresRepository):
                 update(BotDeliveryTask)
                 .where(BotDeliveryTask.id == task_id)
                 .values(
-                    fanned_out=True,
-                    fanned_out_at=now_utc(),
+                    published=True,
+                    published_at=now_utc(),
                 )
             )
             await self._session.execute(stmt)
