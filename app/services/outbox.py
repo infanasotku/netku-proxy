@@ -47,7 +47,13 @@ class BotDeliveryTaskService:
 
         tasks = []
         for rec in records:
-            ids = name_ids_dict[rec.event.name]
+            ids = name_ids_dict.get(rec.event.name, [])
+            if not ids:
+                self._logger.warning(
+                    f"No subscriptions found for event {rec.event.name}"
+                )
+                continue
+
             tasks.extend(
                 (
                     CreateBotDeliveryTask(outbox_id=rec.id, subscription_id=id)
@@ -157,7 +163,7 @@ class OutboxService(BotDeliveryTaskService):
         self, record: list[OutboxDTO], *, uow: PgOutboxUnitOfWorkContext
     ):
         for rec in record:
-            next_attempt_at = now_utc() + timedelta(seconds=rec.attempts**2)
+            next_attempt_at = now_utc() + timedelta(seconds=(rec.attempts + 1) ** 2)
             await uow.outbox.mark_failed(next_attempt_at, outbox_id=rec.id)
 
     async def _mark_fanned_out(
