@@ -2,14 +2,13 @@ from contextlib import asynccontextmanager
 from typing import cast
 
 from fastapi import FastAPI
-from sentry_sdk.types import Event
 from sentry_sdk.tracing import TransactionSource
+from sentry_sdk.types import Event
 
+from app.container import ApiResource, Container
+from app.controllers.admin import create_admin
 from app.infra.config import settings
 from app.infra.sentry import init_sentry
-from app.container import Container, ApiResource
-
-from app.controllers.admin import create_admin
 
 
 def before_send_transaction(event: Event, _):
@@ -28,8 +27,10 @@ def traces_sampler(ctx: dict):
     path: str = scope["path"]
     method: str = scope["method"]
 
-    if path.startswith("/admin") and not (
-        path.startswith("/admin/engine/edit") and method == "POST"
+    if (
+        path.startswith("/admin")
+        and not (path.startswith("/admin/engine/edit") and method == "POST")
+        and not (path.startswith("/admin/engine/action") and method == "GET")
     ):
         return 0.0
 

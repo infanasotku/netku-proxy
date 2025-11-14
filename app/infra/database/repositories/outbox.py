@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sentry_sdk import start_span
@@ -7,51 +7,35 @@ from sqlalchemy import and_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.domains.event import DomainEvent
-from app.infra.database.models import OutboxRecord
+from app.infra.database.models import Outbox
 from app.infra.database.repositories.base import PostgresRepository
+from app.infra.utils.time import now_utc
 from app.schemas.outbox import OutboxDTO
 
 
 class PgOutboxRepository(PostgresRepository):
-    async def store(
-        self, events: list[DomainEvent], *, caused_by: str | None = None
-    ) -> None:
+    async def store(self, events: list[DomainEvent], *, caused_by: str) -> None:
         """
-        Persist a **batch** of `DomainEvent` objects into the *outbox*
-        table/collection inside the **current transaction.
-
-        Purpose:
-        -------
-            Implements the *Transactional Outbox* pattern:
-            the events are saved **atomically** with the business data so that a
-            single database commit guarantees either *both* are durable or *neither*.
+        Persist a **batch** of `DomainEvent` inside the **current transaction.
 
         Args:
             events:
                 A list of domain events collected during the use-case execution.
-                The adapter must iterate the list **in order** and write each event
-                as an individual outbox record.
             caused_by:
-                *Optional* deduplication key (e.g. Redis ``stream_id`` of the
+                Deduplication key (e.g. Redis ``stream_id`` of the
                 upstream message).
-                If provided, **every** stored record should use this value including `event.id` as its
-                primary key; otherwise only `event.id` is used.  This enables
-                *exactly-once* semantics on repeat deliveries.
         """
-        with start_span(op="db", name="Store outbox events") as span:
+        with start_span(op="db", name="store_outbox_events") as span:
             span.set_tag("caused_by", caused_by)
             span.set_tag("events_count", len(events))
 
             for ev in events:
-                if caused_by:
-                    oid = uuid5(NAMESPACE_URL, f"{caused_by}:{ev.id}")
-                else:
-                    oid = ev.id
+                oid = uuid5(NAMESPACE_URL, f"{caused_by}:{ev.id}")
 
                 caused_by = caused_by if caused_by is not None else str(oid)
 
                 stmt = (
-                    pg_insert(OutboxRecord)
+                    pg_insert(Outbox)
                     .values(
                         id=oid,
                         caused_by=caused_by,
@@ -63,22 +47,19 @@ class PgOutboxRepository(PostgresRepository):
 
     async def claim_batch(self, batch: int, *, max_attempts: int) -> list[OutboxDTO]:
         """
-        Claims a batch of unpublished outbox records for processing.
+        Claim a batch of unprocessed outbox records.
+
         This method selects up to `batch` unpublished outbox records from the database,
         locking them for update and skipping any that are already locked by other transactions.
-        It then returns a list of `DomainEvent` instances created from the record bodies.
-
-        Args:
-            batch (int): The maximum number of outbox records to claim.
-            max_attempts (int): The maximum number of publish attempts for each record.
         """
-        with start_span(op="db", name="Claim outbox events") as span:
+        with start_span(op="db", name="claim_outbox_batch") as span:
             stmt = (
-                select(OutboxRecord)
+                select(Outbox)
                 .where(
                     and_(
-                        OutboxRecord.published == False,  # noqa: E712
-                        OutboxRecord.attempts < max_attempts,
+                        Outbox.fanned_out.is_(False),
+                        Outbox.attempts < max_attempts,
+                        Outbox.next_attempt_at <= now_utc(),
                     )
                 )
                 .with_for_update(skip_locked=True)
@@ -101,37 +82,40 @@ class PgOutboxRepository(PostgresRepository):
 
             return result
 
-    async def mark_sent(self, outbox_id: UUID) -> None:
-        """
-        Marks the specified outbox record as sent.
-        Updates the `published` status to True, sets the `published_at` timestamp to the current time,
-        and increments the `attempts` counter for the outbox record identified by `outbox_id`.
-        """
-        with start_span(op="db", name="Mark outbox as sent") as span:
+    async def mark_fanned_out(self, outbox_id: UUID) -> None:
+        """Updates the `fanned_out` status to True."""
+        with start_span(op="db", name="mark_outbox_fanned_out") as span:
             span.set_tag("outbox.id", str(outbox_id))
 
             stmt = (
-                update(OutboxRecord)
-                .where(OutboxRecord.id == outbox_id)
+                update(Outbox)
+                .where(Outbox.id == outbox_id)
                 .values(
-                    published=True,
-                    published_at=datetime.now(timezone.utc),
-                    attempts=OutboxRecord.attempts + 1,
+                    fanned_out=True,
+                    fanned_out_at=now_utc(),
+                    attempts=Outbox.attempts + 1,
                 )
             )
             await self._session.execute(stmt)
 
-    async def mark_failed(self, outbox_id: UUID) -> None:
+    async def mark_failed(self, next_attempt_at: datetime, *, outbox_id: UUID) -> None:
         """
         Marks the specified outbox record as failed.
         Increments the `attempts` counter for the outbox record identified by `outbox_id`.
         """
-        with start_span(op="db", name="Mark outbox as failed") as span:
+        with start_span(op="db", name="mark_outbox_failed") as span:
             span.set_tag("outbox.id", str(outbox_id))
 
             stmt = (
-                update(OutboxRecord)
-                .where(OutboxRecord.id == outbox_id)
-                .values(attempts=OutboxRecord.attempts + 1)
+                update(Outbox)
+                .where(Outbox.id == outbox_id)
+                .values(attempts=Outbox.attempts + 1, next_attempt_at=next_attempt_at)
             )
             await self._session.execute(stmt)
+
+    async def extract_events(self, outbox_ids: list[UUID]) -> dict[UUID, DomainEvent]:
+        with start_span(op="db", name="extract_outbox_events"):
+            stmt = select(Outbox.id, Outbox.body).where(Outbox.id.in_(outbox_ids))
+            rows = (await self._session.execute(stmt)).all()
+
+            return {id: DomainEvent.from_dict(body) for id, body in rows}

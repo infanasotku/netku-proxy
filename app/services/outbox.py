@@ -1,58 +1,82 @@
+import traceback
+from datetime import timedelta
+from logging import Logger
+
+from app.domains.engine import EngineDead, EngineRestored, EngineUpdated
 from app.infra.database.uow import PgOutboxUnitOfWorkContext, PgUnitOfWork
-from app.infra.rabbit.publisher import RabbitOutboxPublisher
-from app.schemas.outbox import OutboxProcessingResult
+from app.infra.utils.time import now_utc
+from app.schemas.outbox import (
+    OutboxDTO,
+)
+from app.services.fanout import BotTaskFanoutPlanner
 
 
 class OutboxService:
     def __init__(
         self,
         uow: PgUnitOfWork[PgOutboxUnitOfWorkContext],
-        publisher: RabbitOutboxPublisher,
+        fanout_planner: BotTaskFanoutPlanner,
         *,
+        logger: Logger,
         batch=200,
         max_publish_attempts=5,
     ) -> None:
         self._uow = uow
-        self._publisher = publisher
+        self._fanout_planner = fanout_planner
+
+        self._logger = logger
         self._batch = batch
         self._max_attempts = max_publish_attempts
 
-    async def process_batch(self) -> list[OutboxProcessingResult]:
-        """
-        Processes a batch of outbox records by claiming, publishing, and updating their status.
-
-        Workflow
-        --------
-        - Claims a batch of outbox records that have not exceeded the maximum number of attempts.
-        - Publishes each record using the configured publisher.
-        - Marks records as sent if publishing succeeds, or as failed if an exception occurs.
-        - Collects and returns the result for each record.
-
-        Returns:
-            A list of results for each processed outbox record, indicating
-            success or failure, error message if any, and the number of attempts.
-        """
+    async def process_outbox_batch(self) -> int:
         async with self._uow.begin() as uow:
             records = await uow.outbox.claim_batch(
                 self._batch, max_attempts=self._max_attempts
             )
-            if not records:
-                return []
 
-            results = []
-            publish_results = await self._publisher.publish_batch(records)
-            for res in publish_results:
-                if res.success:
-                    await uow.outbox.mark_sent(res.record.id)
-                else:
-                    await uow.outbox.mark_failed(res.record.id)
-                results.append(
-                    OutboxProcessingResult(
-                        record=res.record,
-                        success=res.success,
-                        error=res.error,
-                        attempts=res.record.attempts + 1,
-                    )
+            if not records:
+                return 0
+
+            self._logger.info(f"Processing outbox batch with {len(records)} records...")
+
+            unhandled: list[OutboxDTO] = []
+            engine_delivery_tasks = []
+            for rec in records:
+                match rec.event:
+                    case EngineDead() | EngineRestored() | EngineUpdated():
+                        engine_delivery_tasks.append(rec)
+                    case _:
+                        unhandled.append(rec)
+
+            try:
+                await self._fanout_planner.spawn_engine_delivery_tasks(
+                    engine_delivery_tasks, ctx=uow
+                )
+                await self._mark_fanned_out(engine_delivery_tasks, uow=uow)
+            except Exception:
+                self._logger.error(
+                    f"Error spawning engine delivery tasks: {traceback.format_exc()}"
+                )
+                await self._mark_failed(engine_delivery_tasks, uow=uow)
+
+            if len(engine_delivery_tasks) != len(records):
+                raise NotImplementedError(
+                    f"Unhandled event types found: {', '.join(rec.event.name for rec in unhandled)}"
                 )
 
-            return results
+            self._logger.info(f"Processed outbox batch with {len(records)} records")
+
+            return len(records)
+
+    async def _mark_failed(
+        self, record: list[OutboxDTO], *, uow: PgOutboxUnitOfWorkContext
+    ):
+        for rec in record:
+            next_attempt_at = now_utc() + timedelta(seconds=(rec.attempts + 1) ** 2)
+            await uow.outbox.mark_failed(next_attempt_at, outbox_id=rec.id)
+
+    async def _mark_fanned_out(
+        self, record: list[OutboxDTO], *, uow: PgOutboxUnitOfWorkContext
+    ):
+        for rec in record:
+            await uow.outbox.mark_fanned_out(rec.id)

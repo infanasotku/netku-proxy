@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Generic, TypeVar
@@ -11,6 +12,8 @@ from sqlalchemy.ext.asyncio import (
 
 from app.infra.database.repositories.engine import PgEngineRepository
 from app.infra.database.repositories.outbox import PgOutboxRepository
+from app.infra.database.repositories.subscription import PgSubscriptionRepository
+from app.infra.database.repositories.tasks import PgBotDeliveryTaskRepository
 
 
 class PgUnitOfWorkContext:
@@ -60,13 +63,13 @@ class PgUnitOfWork(ABC, Generic[ContextT]):
         transaction = await session.begin()
         return self._make_context(session=session, transaction=transaction)
 
-    async def _finish(self, exc: Exception | None, *, ctx: ContextT):
+    async def _finish(self, exc: BaseException | None, *, ctx: ContextT):
         try:
             if exc is None:
                 await ctx._transaction.commit()
             else:
                 raise exc
-        except Exception:
+        except BaseException:
             try:
                 await ctx._session.rollback()
             except Exception:
@@ -87,10 +90,10 @@ class PgUnitOfWork(ABC, Generic[ContextT]):
             ctx = await self._start()
             try:
                 yield ctx
-            except Exception as e:
-                await self._finish(e, ctx=ctx)
+            except BaseException as e:  # With CancelledError
+                await asyncio.shield(self._finish(e, ctx=ctx))
             else:
-                await self._finish(None, ctx=ctx)
+                await asyncio.shield(self._finish(None, ctx=ctx))
 
 
 class PgOutboxUnitOfWorkContext(PgUnitOfWorkContext):
@@ -99,6 +102,7 @@ class PgOutboxUnitOfWorkContext(PgUnitOfWorkContext):
     ) -> None:
         super().__init__(session=session, transaction=transaction)
         self.outbox = PgOutboxRepository(session)
+        self.tasks = PgBotDeliveryTaskRepository(session)
 
 
 class PgEngineUnitOfWorkContext(PgOutboxUnitOfWorkContext):
@@ -109,8 +113,20 @@ class PgEngineUnitOfWorkContext(PgOutboxUnitOfWorkContext):
         self.engines = PgEngineRepository(session)
 
 
-class PgEngineUnitOfWork(PgUnitOfWork[PgEngineUnitOfWorkContext]):
+class PgBillingUnitOfWorkContext(PgUnitOfWorkContext):
+    def __init__(
+        self, *, session: AsyncSession, transaction: AsyncSessionTransaction
+    ) -> None:
+        super().__init__(session=session, transaction=transaction)
+        self.subscriptions = PgSubscriptionRepository(session)
+
+
+class PgCommonUnitOfWorkContext(PgBillingUnitOfWorkContext, PgEngineUnitOfWorkContext):
+    pass
+
+
+class PgCommonUnitOfWork(PgUnitOfWork[PgCommonUnitOfWorkContext]):
     def _make_context(
         self, *, session: AsyncSession, transaction: AsyncSessionTransaction
-    ) -> PgEngineUnitOfWorkContext:
-        return PgEngineUnitOfWorkContext(session=session, transaction=transaction)
+    ) -> PgCommonUnitOfWorkContext:
+        return PgCommonUnitOfWorkContext(session=session, transaction=transaction)
