@@ -12,7 +12,9 @@ from app.infra.grpc.engine import create_grpc_manager
 from app.infra.logging import logger
 from app.infra.redis.broker import get_redis, get_redis_broker
 from app.services.billing import BillingService
+from app.services.delivery import BotDeliveryTaskService
 from app.services.engine import EngineService
+from app.services.fanout import BotTaskFanoutPlanner
 from app.services.outbox import OutboxService
 
 ResourceT = TypeVar("ResourceT")
@@ -76,9 +78,15 @@ class Container(containers.DeclarativeContainer):
         BillingService,
         uow,
     )
+    bot_fanout_planner = providers.Factory(
+        BotTaskFanoutPlanner, billing_service=billing_service, logger=logger
+    )
+    delivery_task_service = providers.Factory(
+        BotDeliveryTaskService, uow, billing_service, event_publisher, logger=logger
+    )
     engine_service = providers.Factory(
         EngineService, uow, engine_manager, logger=logger
     )
     outbox_service = providers.Factory(
-        OutboxService, uow, billing_service, event_publisher, logger=logger
+        OutboxService, uow, bot_fanout_planner, logger=logger
     )

@@ -14,9 +14,11 @@ class PgSubscriptionRepository(PostgresRepository):
     ) -> dict[str, list[UUID]]:
         with start_span(op="db", name="get_engine_subscriptions_for_events"):
             names = {event.name for event in events}
+            ids = {event.aggregate_id for event in events}
 
             stmt = select(EngineSubscription.id, EngineSubscription.event).where(
-                EngineSubscription.event.in_(names)
+                EngineSubscription.event.in_(names),
+                EngineSubscription.engine_id.in_(ids),
             )
             rows = (await self._session.execute(stmt)).all()
 

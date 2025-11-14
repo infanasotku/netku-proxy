@@ -1,4 +1,3 @@
-import asyncio
 import json
 from datetime import datetime
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -119,9 +118,10 @@ class PgOutboxRepository(PostgresRepository):
         Extract events and return them in the order of the original list.
         """
         with start_span(op="db", name="extract_outbox_events"):
-            stmt = select(Outbox.body).where(Outbox.id.in_(outbox_ids))
-            rows = await self._session.scalars(stmt)
+            stmt = select(Outbox.id, Outbox.body).where(Outbox.id.in_(outbox_ids))
+            rows = (await self._session.execute(stmt)).all()
 
-            events = [DomainEvent.from_dict(row) for row in rows]
-            asyncio.gather
+            id_body_dict = {id: body for id, body in rows}
+
+            events = [DomainEvent.from_dict(id_body_dict[id]) for id in outbox_ids]
             return events

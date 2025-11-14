@@ -126,7 +126,7 @@ class BotDeliveryTaskView(ModelView, model=models.BotDeliveryTask):
 
     can_delete = False
     can_create = False
-    can_edit = False
+    can_edit = True
     can_export = True
 
     column_list = "__all__"

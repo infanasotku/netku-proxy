@@ -6,6 +6,7 @@ from dependency_injector.wiring import Provide, inject
 from sentry_sdk import start_transaction
 
 from app.container import Container
+from app.services.delivery import BotDeliveryTaskService
 from app.services.outbox import OutboxService
 
 
@@ -60,7 +61,7 @@ async def _handle_outbox_batch(svc: OutboxService = Provide[Container.outbox_ser
 @_relay
 @inject
 async def _handle_delivery_tasks_batch(
-    svc: OutboxService = Provide[Container.outbox_service],
+    svc: BotDeliveryTaskService = Provide[Container.delivery_task_service],
 ):
     while True:
         with start_transaction(
