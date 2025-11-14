@@ -106,9 +106,9 @@ class EngineView(ModelView, model=models.Engine):
 class OutboxView(ModelView, model=models.Outbox):
     name_plural = "Outbox"
 
-    can_delete = False
+    can_delete = True
     can_create = False
-    can_edit = False
+    can_edit = True
     can_export = True
 
     column_list = "__all__"
@@ -124,7 +124,7 @@ class OutboxView(ModelView, model=models.Outbox):
 class BotDeliveryTaskView(ModelView, model=models.BotDeliveryTask):
     name_plural = "Bot Delivery Tasks"
 
-    can_delete = False
+    can_delete = True
     can_create = False
     can_edit = True
     can_export = True
