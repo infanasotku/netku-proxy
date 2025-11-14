@@ -4,7 +4,7 @@ from typing import Any, ClassVar, Self, Type, TypedDict, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 
-class DomainPayload(TypedDict):
+class DomainDict(TypedDict):
     # Meta fields
     aggregate_id: str
     version: str
@@ -42,9 +42,9 @@ class DomainEvent:
     def __init_subclass__(cls):
         DomainEvent._registry[cls.__name__] = cls
 
-    def to_dict(self) -> DomainPayload:
+    def to_dict(self) -> DomainDict:
         """Envelope ready for JSON → broker."""
-        meta: DomainPayload = {
+        meta: DomainDict = {
             "event_type": self.__class__.__name__,
             "id": str(self.id),
             "aggregate_id": str(self.aggregate_id),
