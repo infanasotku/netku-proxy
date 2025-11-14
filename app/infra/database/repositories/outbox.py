@@ -113,15 +113,9 @@ class PgOutboxRepository(PostgresRepository):
             )
             await self._session.execute(stmt)
 
-    async def extract_events(self, outbox_ids: list[UUID]) -> list[DomainEvent]:
-        """
-        Extract events and return them in the order of the original list.
-        """
+    async def extract_events(self, outbox_ids: list[UUID]) -> dict[UUID, DomainEvent]:
         with start_span(op="db", name="extract_outbox_events"):
             stmt = select(Outbox.id, Outbox.body).where(Outbox.id.in_(outbox_ids))
             rows = (await self._session.execute(stmt)).all()
 
-            id_body_dict = {id: body for id, body in rows}
-
-            events = [DomainEvent.from_dict(id_body_dict[id]) for id in outbox_ids]
-            return events
+            return {id: DomainEvent.from_dict(body) for id, body in rows}

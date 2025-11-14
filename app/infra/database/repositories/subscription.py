@@ -30,10 +30,7 @@ class PgSubscriptionRepository(PostgresRepository):
 
     async def get_telegram_ids_for_subscriptions(
         self, subscription_ids: list[UUID]
-    ) -> list[str]:
-        """
-        Get telegram IDs and return them in the order of the original list.
-        """
+    ) -> dict[UUID, str]:
         with start_span(op="db", name="get_telegram_ids_for_subscriptions"):
             stmt = (
                 select(EngineSubscription.id, User.telegram_id)
@@ -41,6 +38,4 @@ class PgSubscriptionRepository(PostgresRepository):
                 .where(EngineSubscription.id.in_(subscription_ids))
             )
             rows = (await self._session.execute(stmt)).all()
-            sub_telegram_ids_dict = {id: telegram_id for id, telegram_id in rows}
-
-            return [sub_telegram_ids_dict[id] for id in subscription_ids]
+            return {id: telegram_id for id, telegram_id in rows}

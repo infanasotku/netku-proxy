@@ -44,9 +44,18 @@ class BotDeliveryTaskService:
             )
 
             for_sending: list[PublishBotDeliveryTask] = []
-            for ev, telegram_id in zip(events, telegram_ids):
+            for task in tasks:
+                event = events.get(task.outbox_id)
+                telegram_id = telegram_ids.get(task.subscription_id)
+                if event is None or telegram_id is None:
+                    self._logger.warning(
+                        f"Missing data for delivery task {task.id}"
+                        f"(event={event is not None} telegram={telegram_id is not None})"
+                    )
+                    continue
+
                 for_sending.append(
-                    PublishBotDeliveryTask(event=ev, telegram_id=telegram_id)
+                    PublishBotDeliveryTask(event=event, telegram_id=telegram_id)
                 )
 
             publish_results = await self._publisher.publish_batch(for_sending)
