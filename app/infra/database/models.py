@@ -182,7 +182,9 @@ class BotDeliveryTask(Base):
 
     __tablename__ = "delivery_tasks"
 
-    outbox_id: Mapped[UUID] = mapped_column(ForeignKey("outbox.id"), nullable=False)
+    outbox_id: Mapped[UUID] = mapped_column(
+        ForeignKey("outbox.id", ondelete="CASCADE"), nullable=False
+    )
     subscription_id: Mapped[UUID] = mapped_column(
         ForeignKey("engine_subscriptions.id"), nullable=False
     )
