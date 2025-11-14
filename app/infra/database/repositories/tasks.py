@@ -77,6 +77,7 @@ class PgBotDeliveryTaskRepository(PostgresRepository):
                 .where(BotDeliveryTask.id == task_id)
                 .values(
                     published=True,
+                    attempts=BotDeliveryTask.attempts + 1,
                     published_at=now_utc(),
                 )
             )

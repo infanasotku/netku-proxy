@@ -93,6 +93,7 @@ class PgOutboxRepository(PostgresRepository):
                 .values(
                     fanned_out=True,
                     fanned_out_at=now_utc(),
+                    attempts=Outbox.attempts + 1,
                 )
             )
             await self._session.execute(stmt)
