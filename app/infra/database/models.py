@@ -106,7 +106,7 @@ class Outbox(Base):
     )
     attempts: Mapped[int] = mapped_column(
         nullable=False,
-        default=1,
+        default=0,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -190,7 +190,7 @@ class BotDeliveryTask(Base):
     published: Mapped[bool] = mapped_column(nullable=False, default=False)
     attempts: Mapped[int] = mapped_column(
         nullable=False,
-        default=1,
+        default=0,
     )
 
     created_at: Mapped[datetime] = mapped_column(
