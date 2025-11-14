@@ -1,5 +1,6 @@
 from datetime import timedelta
 from logging import Logger
+from uuid import UUID
 
 from app.infra.aiogram.event import AiogramEventPublisher
 from app.infra.database.uow import PgOutboxUnitOfWorkContext, PgUnitOfWork
@@ -44,6 +45,7 @@ class BotDeliveryTaskService:
             )
 
             for_sending: list[PublishBotDeliveryTask] = []
+            skipped: set[UUID] = set()
             for task in tasks:
                 event = events.get(task.outbox_id)
                 telegram_id = telegram_ids.get(task.subscription_id)
@@ -52,15 +54,17 @@ class BotDeliveryTaskService:
                         f"Missing data for delivery task {task.id}"
                         f"(event={event is not None} telegram={telegram_id is not None})"
                     )
+                    skipped.add(task.id)
                     continue
 
                 for_sending.append(
                     PublishBotDeliveryTask(event=event, telegram_id=telegram_id)
                 )
 
+            sended_tasks = [task for task in tasks if task.id not in skipped]
             publish_results = await self._publisher.publish_batch(for_sending)
             success_count = 0
-            for success, task in zip(publish_results, tasks):
+            for success, task in zip(publish_results, sended_tasks):
                 if success:
                     await uow.tasks.mark_published(task.id)
                     success_count += 1
@@ -69,7 +73,7 @@ class BotDeliveryTaskService:
                     await uow.tasks.mark_failed(next_attempt_at, task_id=task.id)
 
             self._logger.info(
-                f"Processed {len(tasks)} delivery tasks, success {success_count}"
+                f"Processed {len(tasks)} delivery tasks, success: {success_count}, skipped: {len(skipped)}"
             )
 
             return len(tasks)

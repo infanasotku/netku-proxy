@@ -26,11 +26,9 @@ class BotTaskFanoutPlanner:
 
         tasks = []
         for rec in records:
-            ids = name_ids_dict.get(rec.event.name, [])
+            ids = name_ids_dict.get(rec.event, [])
             if not ids:
-                self._logger.warning(
-                    f"No subscriptions found for event {rec.event.name}"
-                )
+                self._logger.warning(f"No subscriptions found for event {rec.event}")
                 continue
 
             tasks.extend(

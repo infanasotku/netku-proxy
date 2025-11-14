@@ -10,16 +10,13 @@ class BillingService:
 
     async def get_subscriptions_for_events(
         self, events: list[DomainEvent]
-    ) -> dict[str, list[UUID]]:
+    ) -> dict[DomainEvent, list[UUID]]:
         async with self._uow.begin() as ctx:
             return await ctx.subscriptions.get_engine_subscriptions_for_events(events)
 
     async def get_telegram_ids_for_subscriptions(
         self, subscription_ids: list[UUID]
     ) -> dict[UUID, str]:
-        """
-        Get telegram IDs and return them in the order of the original list.
-        """
         async with self._uow.begin() as ctx:
             return await ctx.subscriptions.get_telegram_ids_for_subscriptions(
                 subscription_ids
