@@ -1,11 +1,11 @@
+from dependency_injector.wiring import Provide, inject
 from fastapi import FastAPI
 from sqladmin import Admin
 from sqlalchemy.ext.asyncio import AsyncEngine
-from dependency_injector.wiring import Provide, inject
 
+import app.controllers.admin.views as views
 from app.container import Container
 from app.controllers.admin.auth import AdminAuthenticationBackend
-import app.controllers.admin.views as views
 
 
 @inject
@@ -30,5 +30,8 @@ def create_admin(
 
     admin.add_view(views.EngineView)
     admin.add_view(views.OutboxView)
+    admin.add_view(views.BotDeliveryTaskView)
+    admin.add_view(views.UserView)
+    admin.add_view(views.EngineSubscriptionView)
 
     return admin_app

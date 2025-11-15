@@ -1,35 +1,35 @@
-from contextlib import asynccontextmanager
+import asyncio
 import json
+from contextlib import asynccontextmanager
 from logging import Logger
 from typing import cast
 from uuid import UUID
-import asyncio
 
-from faststream.exceptions import AckMessage
-from faststream.redis import RedisRouter, RedisMessage
-from faststream.redis.message import UnifyRedisMessage
+from dependency_injector.wiring import Provide, inject
 from faststream.broker.message import AckStatus
-from dependency_injector.wiring import inject, Provide
-from redis.asyncio import Redis
+from faststream.exceptions import AckMessage
+from faststream.redis import RedisMessage, RedisRouter
+from faststream.redis.message import UnifyRedisMessage
 from pydantic import BaseModel, computed_field
+from redis.asyncio import Redis
 from sentry_sdk import start_transaction
 
-from app.infra.redis.streams import (
-    engine_stream,
-    dlq_stream,
-    GROUP,
-    CONSUMER,
-    IDLE_MS,
-    BATCH,
-    PAUSE,
-    MAX_RETRY,
-)
-from app.infra.utils.retry import retry
-from app.services.engine import EngineService
-from app.services.exceptions.engine import EngineNotExistError
-from app.schemas.engine import EngineCmd, EngineInfoDTO
 from app.container import Container
 from app.domains.engine import Version
+from app.infra.redis.streams import (
+    BATCH,
+    CONSUMER,
+    GROUP,
+    IDLE_MS,
+    MAX_RETRY,
+    PAUSE,
+    dlq_stream,
+    engine_stream,
+)
+from app.infra.utils.retry import retry
+from app.schemas.engine import EngineCmd, EngineInfoDTO
+from app.services.engine import EngineService
+from app.services.exceptions.engine import EngineNotExistError
 
 router = RedisRouter()
 
@@ -61,7 +61,7 @@ def _get_stream_id(message: RedisMessage) -> str:
     return raw_message["message_ids"][0].decode()
 
 
-def _get_outbox_id(message: RedisMessage):
+def _get_event_id(message: RedisMessage):
     stream_name: str = message.raw_message["channel"]
     message_id: str = _get_stream_id(message)
     return "{0}:{1}".format(stream_name, message_id)
@@ -81,7 +81,7 @@ async def handle_keyevents(
 
     engine_key = key_event.key.removeprefix(KEY_PREFIX)
     stream_id = _get_stream_id(message)
-    outbox_id = _get_outbox_id(message)
+    caused_by = _get_event_id(message)
     version = Version.from_stream_id(stream_id)
 
     logger = _get_logger()
@@ -89,7 +89,7 @@ async def handle_keyevents(
     tr_name = f"{key_event.event.upper()} /engines/{'{engine_id}'}"
     with start_transaction(op="queue.task", name=tr_name) as tr:
         tr.set_tag("engine_key", engine_key)
-        tr.set_tag("outbox_id", outbox_id)
+        tr.set_tag("outbox_id", caused_by)
         tr.set_tag("version", version.to_stream_id())
 
         try:
@@ -97,13 +97,13 @@ async def handle_keyevents(
                 case "expired":
                     await handle_engine_dead(
                         engine_key=engine_key,
-                        outbox_id=outbox_id,
+                        outbox_id=caused_by,
                         version=version,
                     )
                 case "hset":
                     await handle_engine_info_changed(
                         engine_key=engine_key,
-                        outbox_id=outbox_id,
+                        outbox_id=caused_by,
                         payload=cast(dict, key_event.parsed_payload),
                         version=version,
                     )
@@ -132,7 +132,7 @@ async def handle_engine_dead(
     logger: Logger = Provide[Container.logger],
 ):
     try:
-        await engine_service.remove(
+        await engine_service.mark_dead(
             UUID(engine_key), caused_by=outbox_id, version=version
         )
     except EngineNotExistError as e:

@@ -84,7 +84,7 @@ class Engine(Domain):
         )
         self._events.append(event)
 
-    def remove(self, version: Version):
+    def mark_dead(self, version: Version):
         if not self.version.is_newer(version):
             return
 

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: netku-proxy-config
+  name: {{ .Values.name }}-config
 data:
   # Admin
   ADMIN__USERNAME: "admin"

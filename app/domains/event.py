@@ -1,7 +1,19 @@
-from dataclasses import dataclass, fields, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
-from typing import Any, Type, ClassVar, cast, Self
-from uuid import UUID, uuid5, NAMESPACE_URL
+from typing import Any, ClassVar, Self, Type, TypedDict, cast
+from uuid import NAMESPACE_URL, UUID, uuid5
+
+
+class DomainDict(TypedDict):
+    # Meta fields
+    aggregate_id: str
+    version: str
+    id: str
+    occurred_at: str
+    event_type: str
+
+    # Payload fields
+    payload: dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,17 +42,24 @@ class DomainEvent:
     def __init_subclass__(cls):
         DomainEvent._registry[cls.__name__] = cls
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> DomainDict:
         """Envelope ready for JSON → broker."""
-        meta: dict[str, Any] = {
+        meta: DomainDict = {
             "event_type": self.__class__.__name__,
             "id": str(self.id),
             "aggregate_id": str(self.aggregate_id),
             "version": self.version,
             "occurred_at": self.occurred_at.isoformat(timespec="milliseconds"),
+            "payload": {},
         }
 
-        meta_fields = {"aggregate_id", "version", "occurred_at", "id"}
+        meta_fields = {
+            "aggregate_id",
+            "version",
+            "occurred_at",
+            "id",
+            "event_type",
+        }
         payload = {
             f.name: getattr(self, f.name)
             for f in fields(self)
