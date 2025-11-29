@@ -9,23 +9,23 @@ from app.controllers.admin.auth import AdminAuthenticationBackend
 
 
 @inject
-def create_admin(
+def register_admin(
+    app: FastAPI,
+    *,
     username: str,
     password: str,
     engine: AsyncEngine = Provide[Container.async_engine],
-    *,
     secret: str,
 ):
     authentication_backend = AdminAuthenticationBackend(
         secret, username=username, password=password
     )
-    admin_app = FastAPI()
     admin = Admin(
-        admin_app,
+        app,
         engine,
         title="Engine panel",
         authentication_backend=authentication_backend,
-        base_url="/",
+        base_url="/admin",
     )
 
     admin.add_view(views.EngineView)
@@ -33,5 +33,4 @@ def create_admin(
     admin.add_view(views.BotDeliveryTaskView)
     admin.add_view(views.UserView)
     admin.add_view(views.EngineSubscriptionView)
-
-    return admin_app
+    admin.add_view(views.UserSubscriptionGroupView)
