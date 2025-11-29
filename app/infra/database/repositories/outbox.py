@@ -45,43 +45,6 @@ class PgOutboxRepository(PostgresRepository):
                 )
                 await self._session.execute(stmt)
 
-    async def claim_batch(self, batch: int, *, max_attempts: int) -> list[OutboxDTO]:
-        """
-        Claim a batch of unprocessed outbox records.
-
-        This method selects up to `batch` unpublished outbox records from the database,
-        locking them for update and skipping any that are already locked by other transactions.
-        """
-        with start_span(op="db", name="claim_outbox_batch") as span:
-            stmt = (
-                select(Outbox)
-                .where(
-                    and_(
-                        Outbox.fanned_out.is_(False),
-                        Outbox.attempts < max_attempts,
-                        Outbox.next_attempt_at <= now_utc(),
-                    )
-                )
-                .with_for_update(skip_locked=True)
-                .limit(batch)
-            )
-
-            rows = await self._session.scalars(stmt)
-
-            result = [
-                OutboxDTO(
-                    event=DomainEvent.from_dict(row.body),
-                    caused_by=row.caused_by,
-                    id=row.id,
-                    attempts=row.attempts,
-                )
-                for row in rows
-            ]
-
-            span.set_tag("claimed_count", len(result))
-
-            return result
-
     async def mark_fanned_out(self, outbox_id: UUID) -> None:
         """Updates the `fanned_out` status to True."""
         with start_span(op="db", name="mark_outbox_fanned_out") as span:
@@ -119,3 +82,42 @@ class PgOutboxRepository(PostgresRepository):
             rows = (await self._session.execute(stmt)).all()
 
             return {id: DomainEvent.from_dict(body) for id, body in rows}
+
+
+class PgOutboxTxRepository(PgOutboxRepository):
+    async def claim_batch(self, batch: int, *, max_attempts: int) -> list[OutboxDTO]:
+        """
+        Claim a batch of unprocessed outbox records.
+
+        This method selects up to `batch` unpublished outbox records from the database,
+        locking them for update and skipping any that are already locked by other transactions.
+        """
+        with start_span(op="db", name="claim_outbox_batch") as span:
+            stmt = (
+                select(Outbox)
+                .where(
+                    and_(
+                        Outbox.fanned_out.is_(False),
+                        Outbox.attempts < max_attempts,
+                        Outbox.next_attempt_at <= now_utc(),
+                    )
+                )
+                .with_for_update(skip_locked=True)
+                .limit(batch)
+            )
+
+            rows = await self._session.scalars(stmt)
+
+            result = [
+                OutboxDTO(
+                    event=DomainEvent.from_dict(row.body),
+                    caused_by=row.caused_by,
+                    id=row.id,
+                    attempts=row.attempts,
+                )
+                for row in rows
+            ]
+
+            span.set_tag("claimed_count", len(result))
+
+            return result

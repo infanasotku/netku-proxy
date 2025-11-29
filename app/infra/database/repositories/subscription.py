@@ -85,3 +85,7 @@ class PgSubscriptionRepository(PostgresRepository):
             )
 
             await self._session.execute(stmt)
+
+
+class PgSubscriptionTxRepository(PgSubscriptionRepository):
+    pass
