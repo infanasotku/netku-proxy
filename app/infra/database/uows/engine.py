@@ -11,7 +11,7 @@ from app.infra.database.uows.outbox import PgOutboxTxUOWContext, PgOutboxUOWCont
 class PgEngineUOWContext(PgOutboxUOWContext):
     def __init__(self, *, session: AsyncSession) -> None:
         super().__init__(session=session)
-        self.engine = PgEngineRepository(session)
+        self.engines = PgEngineRepository(session)
 
 
 class PgEngineTxUOWContext(PgOutboxTxUOWContext):
@@ -19,7 +19,7 @@ class PgEngineTxUOWContext(PgOutboxTxUOWContext):
         self, *, session: AsyncSession, transaction: AsyncSessionTransaction
     ) -> None:
         super().__init__(session=session, transaction=transaction)
-        self.engine = PgEngineTxRepository(session)
+        self.engines = PgEngineTxRepository(session)
 
 
 class PgEngineUnitOfWork(PgUnitOfWork[PgEngineUOWContext, PgEngineTxUOWContext]):

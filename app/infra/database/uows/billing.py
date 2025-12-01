@@ -10,7 +10,7 @@ from app.infra.database.uows.base import PgTxUOWContext, PgUnitOfWork, PgUOWCont
 class PgSubscriptionUOWContext(PgUOWContext):
     def __init__(self, *, session: AsyncSession) -> None:
         super().__init__(session=session)
-        self.tasks = PgSubscriptionRepository(session)
+        self.subscriptions = PgSubscriptionRepository(session)
 
 
 class PgSubscriptionTxUOWContext(PgTxUOWContext):
@@ -18,16 +18,20 @@ class PgSubscriptionTxUOWContext(PgTxUOWContext):
         self, *, session: AsyncSession, transaction: AsyncSessionTransaction
     ) -> None:
         super().__init__(session=session, transaction=transaction)
-        self.tasks = PgSubscriptionTxRepository(session)
+        self.subscriptions = PgSubscriptionTxRepository(session)
 
 
-class PgBillingUnitOfWork(
-    PgUnitOfWork[PgSubscriptionUOWContext, PgSubscriptionTxUOWContext]
-):
+class PgBillingUOWContext(PgSubscriptionUOWContext): ...
+
+
+class PgBillingTxUOWContext(PgSubscriptionTxUOWContext): ...
+
+
+class PgBillingUnitOfWork(PgUnitOfWork[PgBillingUOWContext, PgBillingTxUOWContext]):
     def _make_tx_ctx(
         self, *, session: AsyncSession, transaction: AsyncSessionTransaction
-    ) -> PgSubscriptionTxUOWContext:
-        return PgSubscriptionTxUOWContext(session=session, transaction=transaction)
+    ) -> PgBillingTxUOWContext:
+        return PgBillingTxUOWContext(session=session, transaction=transaction)
 
-    def _make_plain_ctx(self, *, session: AsyncSession) -> PgSubscriptionUOWContext:
-        return PgSubscriptionUOWContext(session=session)
+    def _make_plain_ctx(self, *, session: AsyncSession) -> PgBillingUOWContext:
+        return PgBillingUOWContext(session=session)

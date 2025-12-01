@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.infra.aiogram import get_bot
 from app.infra.aiogram.event import AiogramEventPublisher
-from app.infra.database.uow import PgCommonUnitOfWork
+from app.infra.database.uows.billing import PgBillingUnitOfWork
+from app.infra.database.uows.engine import PgEngineUnitOfWork
+from app.infra.database.uows.outbox import PgOutboxUnitOfWork
 from app.infra.grpc.channel import generate_create_channel_context
 from app.infra.grpc.engine import create_grpc_manager
 from app.infra.logging import logger
@@ -36,7 +38,17 @@ class Container(containers.DeclarativeContainer):
     config = providers.Configuration()
     logger = providers.Object(logger)
 
-    async_engine = providers.Singleton(
+    plain_engine = providers.Singleton(
+        create_async_engine,
+        config.postgres.dsn,
+        connect_args=providers.Dict(
+            server_settings=providers.Dict(search_path=config.postgres.sql_schema)
+        ),
+        pool_pre_ping=False,
+        pool_recycle=3600,
+        isolation_level="AUTOCOMMIT",
+    )
+    tx_engine = providers.Singleton(
         create_async_engine,
         config.postgres.dsn,
         connect_args=providers.Dict(
@@ -45,9 +57,10 @@ class Container(containers.DeclarativeContainer):
         pool_pre_ping=False,
         pool_recycle=3600,
     )
-    async_sessionmaker = providers.Singleton(
-        async_sessionmaker[AsyncSession], async_engine
+    plain_sessionmaker = providers.Singleton(
+        async_sessionmaker[AsyncSession], plain_engine
     )
+    tx_sessionmaker = providers.Singleton(async_sessionmaker[AsyncSession], tx_engine)
     redis_broker = EventsResource[Awaitable[RedisBroker]](
         get_redis_broker,  # type: ignore
         config.redis.dsn,
@@ -72,21 +85,39 @@ class Container(containers.DeclarativeContainer):
     engine_manager = ApiResource(create_grpc_manager, create_channel_context)
     event_publisher = providers.Singleton(AiogramEventPublisher, bot, logger=logger)
 
-    uow = providers.Factory(PgCommonUnitOfWork, async_sessionmaker)
+    engine_uow = providers.Factory(
+        PgEngineUnitOfWork,
+        plain_sessionmaker=plain_sessionmaker,
+        tx_sessionmaker=tx_sessionmaker,
+    )
+    outbox_uow = providers.Factory(
+        PgOutboxUnitOfWork,
+        plain_sessionmaker=plain_sessionmaker,
+        tx_sessionmaker=tx_sessionmaker,
+    )
+    billing_uow = providers.Factory(
+        PgBillingUnitOfWork,
+        plain_sessionmaker=plain_sessionmaker,
+        tx_sessionmaker=tx_sessionmaker,
+    )
 
     billing_service = providers.Factory(
         BillingService,
-        uow,
+        billing_uow,
     )
     bot_fanout_planner = providers.Factory(
         BotTaskFanoutPlanner, billing_service=billing_service, logger=logger
     )
     delivery_task_service = providers.Factory(
-        BotDeliveryTaskService, uow, billing_service, event_publisher, logger=logger
+        BotDeliveryTaskService,
+        outbox_uow,
+        billing_service,
+        event_publisher,
+        logger=logger,
     )
     engine_service = providers.Factory(
-        EngineService, uow, engine_manager, logger=logger
+        EngineService, engine_uow, engine_manager, logger=logger
     )
     outbox_service = providers.Factory(
-        OutboxService, uow, bot_fanout_planner, logger=logger
+        OutboxService, outbox_uow, bot_fanout_planner, logger=logger
     )

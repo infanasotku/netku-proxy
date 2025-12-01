@@ -1,6 +1,7 @@
 from logging import Logger
 
-from app.infra.database.uow import PgOutboxUnitOfWorkContext
+from app.infra.database.uows import PgFullOutboxUOWContext
+from app.infra.database.uows.outbox import PgFullOutboxTxUOWContext
 from app.schemas.outbox import CreateBotDeliveryTask, OutboxDTO
 from app.services.billing import BillingService
 
@@ -14,7 +15,7 @@ class BotTaskFanoutPlanner:
         self,
         records: list[OutboxDTO],
         *,
-        ctx: PgOutboxUnitOfWorkContext,
+        ctx: PgFullOutboxUOWContext | PgFullOutboxTxUOWContext,
     ):
         name_ids_dict = await self._billing.get_subscriptions_for_events(
             [rec.event for rec in records]

@@ -2,7 +2,11 @@ from logging import Logger
 from uuid import UUID
 
 from app.domains.engine import Engine, EngineStatus, Version
-from app.infra.database.uow import PgEngineUnitOfWorkContext, PgUnitOfWork
+from app.infra.database.uows import (
+    PgEngineTxUOWContext,
+    PgEngineUOWContext,
+    PgUnitOfWork,
+)
 from app.infra.grpc.engine import GRPCEngineManager
 from app.schemas.engine import EngineCmd
 from app.services.exceptions.engine import EngineDeadError, EngineNotExistError
@@ -15,7 +19,7 @@ def _is_not_newer_msg(id: UUID):
 class EngineService:
     def __init__(
         self,
-        uow: PgUnitOfWork[PgEngineUnitOfWorkContext],
+        uow: PgUnitOfWork[PgEngineUOWContext, PgEngineTxUOWContext],
         manager: GRPCEngineManager,
         *,
         logger: Logger,
@@ -41,7 +45,7 @@ class EngineService:
             EngineNotExistError
                 If the engine does not exist.
         """
-        async with self._uow.begin() as uow:
+        async with self._uow.begin(with_tx=True) as uow:
             current_engine = await uow.engines.get_for_update(id)
             self._logger.info(f"Marking engine with ID [{id}] as dead...")
             if current_engine is None:
@@ -72,7 +76,7 @@ class EngineService:
             caused_by: Correlation identifier propagated into the outbox.
             version: Optimistic concurrency token guaranteeing proper ordering.
         """
-        async with self._uow.begin() as uow:
+        async with self._uow.begin(with_tx=True) as uow:
             current_engine = await uow.engines.get_for_update(engine.id)
             if current_engine is None:
                 self._logger.info(f"Creating new engine with ID [{engine.id}]...")
@@ -117,7 +121,7 @@ class EngineService:
             EngineDeadError
                 If the engine is marked DEAD.
         """
-        async with self._uow.begin() as uow:
+        async with self._uow.begin(with_tx=False) as uow:
             engine = await uow.engines.get(id)
             self._logger.info(f"Restarting engine with ID [{id}]...")
             if engine is None:
@@ -129,7 +133,7 @@ class EngineService:
         self._logger.info(f"Engine with ID [{id}] restarted.")
 
     async def remove_dead_engines(self):
-        async with self._uow.begin() as uow:
+        async with self._uow.begin(with_tx=False) as uow:
             self._logger.info("Removing dead engines...")
             deleted = await uow.engines.remove_dead()
             self._logger.info(f"Removed {deleted} dead engines.")
