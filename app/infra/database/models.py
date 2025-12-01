@@ -162,11 +162,15 @@ class EngineSubscription(BaseWithPK):
 
     __tablename__ = "engine_subscriptions"
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     user: Mapped[User] = relationship(
         foreign_keys=[user_id], back_populates="subscriptions"
     )
-    engine_id: Mapped[UUID] = mapped_column(ForeignKey("engines.id"), nullable=False)
+    engine_id: Mapped[UUID] = mapped_column(
+        ForeignKey("engines.id", ondelete="CASCADE"), nullable=False
+    )
     engine: Mapped[Engine] = relationship(
         foreign_keys=[engine_id], back_populates="subscriptions"
     )
@@ -191,7 +195,7 @@ class BotDeliveryTask(BaseWithPK):
         ForeignKey("outbox.id", ondelete="CASCADE"), nullable=False
     )
     subscription_id: Mapped[UUID] = mapped_column(
-        ForeignKey("engine_subscriptions.id"), nullable=False
+        ForeignKey("engine_subscriptions.id", ondelete="CASCADE"), nullable=False
     )
 
     published: Mapped[bool] = mapped_column(nullable=False, default=False)
