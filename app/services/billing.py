@@ -47,13 +47,15 @@ class BillingService:
             for_create = [ev for ev in events if ev not in existing_subs]
 
             await ctx.subscriptions.delete_subscriptions(for_delete)
-            await ctx.subscriptions.insert_subscriptions(
-                [
-                    CreateEngineSubscription(
-                        engine_id=engine_id,
-                        user_id=user_id,
-                        event=event,
-                    )
-                    for event in for_create
-                ]
-            )
+
+            if len(for_create) > 0:
+                await ctx.subscriptions.insert_subscriptions(
+                    [
+                        CreateEngineSubscription(
+                            engine_id=engine_id,
+                            user_id=user_id,
+                            event=event,
+                        )
+                        for event in for_create
+                    ]
+                )

@@ -264,6 +264,7 @@ class UserSubscriptionGroupView(ModelView, model=aggregates.UserSubscriptionGrou
         events: list[str] = data["events"]
 
         await svc.upsert_subscriptions(events, user_id=user_id, engine_id=engine_id)
+        return aggregates.UserSubscriptionGroup()
 
     @inject
     async def insert_model(
@@ -277,3 +278,16 @@ class UserSubscriptionGroupView(ModelView, model=aggregates.UserSubscriptionGrou
         events: list[str] = data["events"]
 
         await svc.upsert_subscriptions(events, user_id=user_id, engine_id=engine_id)
+        return aggregates.UserSubscriptionGroup()
+
+    @inject
+    async def delete_model(
+        self,
+        request: Request,
+        pk: Any,
+        svc: BillingService = Provide[Container.billing_service],
+    ):
+        user_id, engine_id = pk.split(";")
+        await svc.upsert_subscriptions(
+            [], user_id=UUID(user_id), engine_id=UUID(engine_id)
+        )
