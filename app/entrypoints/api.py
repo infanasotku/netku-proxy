@@ -6,7 +6,7 @@ from sentry_sdk.tracing import TransactionSource
 from sentry_sdk.types import Event
 
 from app.container import ApiResource, Container
-from app.controllers.admin import create_admin
+from app.controllers.admin import register_admin
 from app.infra.config import settings
 from app.infra.sentry import init_sentry
 
@@ -68,13 +68,11 @@ def create_app() -> FastAPI:
     app = FastAPI(redoc_url=None, docs_url=None, lifespan=create_lifespan(container))
     app.__dict__["container"] = container
 
-    app.mount(
-        "/admin",
-        create_admin(
-            settings.admin.username,
-            settings.admin.password,
-            secret=settings.admin.secret,
-        ),
+    register_admin(
+        app,
+        username=settings.admin.username,
+        password=settings.admin.password,
+        secret=settings.admin.secret,
     )
 
     return app

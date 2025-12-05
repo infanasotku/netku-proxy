@@ -9,4 +9,4 @@ def from_event(event: DomainEvent) -> str:
     payload = dump["payload"]
     prettyfied = json.dumps(payload, indent=2)
 
-    return f"Event notification: {hbold(event.name)}\n\nData:\n{hcode(prettyfied)}"
+    return f"Event notification: {hbold(event.name)}\nEngine: {hbold(event.aggregate_id)}\nData:\n{hcode(prettyfied)}"
