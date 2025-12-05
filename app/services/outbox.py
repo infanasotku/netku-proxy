@@ -3,7 +3,11 @@ from datetime import timedelta
 from logging import Logger
 
 from app.domains.engine import EngineDead, EngineRestored, EngineUpdated
-from app.infra.database.uow import PgOutboxUnitOfWorkContext, PgUnitOfWork
+from app.infra.database.uows import (
+    PgFullOutboxTxUOWContext,
+    PgFullOutboxUOWContext,
+    PgUnitOfWork,
+)
 from app.infra.utils.time import now_utc
 from app.schemas.outbox import (
     OutboxDTO,
@@ -14,7 +18,7 @@ from app.services.fanout import BotTaskFanoutPlanner
 class OutboxService:
     def __init__(
         self,
-        uow: PgUnitOfWork[PgOutboxUnitOfWorkContext],
+        uow: PgUnitOfWork[PgFullOutboxUOWContext, PgFullOutboxTxUOWContext],
         fanout_planner: BotTaskFanoutPlanner,
         *,
         logger: Logger,
@@ -29,7 +33,7 @@ class OutboxService:
         self._max_attempts = max_publish_attempts
 
     async def process_outbox_batch(self) -> int:
-        async with self._uow.begin() as uow:
+        async with self._uow.begin(with_tx=True) as uow:
             records = await uow.outbox.claim_batch(
                 self._batch, max_attempts=self._max_attempts
             )
@@ -69,14 +73,20 @@ class OutboxService:
             return len(records)
 
     async def _mark_failed(
-        self, record: list[OutboxDTO], *, uow: PgOutboxUnitOfWorkContext
+        self,
+        record: list[OutboxDTO],
+        *,
+        uow: PgFullOutboxUOWContext | PgFullOutboxTxUOWContext,
     ):
         for rec in record:
             next_attempt_at = now_utc() + timedelta(seconds=(rec.attempts + 1) ** 2)
             await uow.outbox.mark_failed(next_attempt_at, outbox_id=rec.id)
 
     async def _mark_fanned_out(
-        self, record: list[OutboxDTO], *, uow: PgOutboxUnitOfWorkContext
+        self,
+        record: list[OutboxDTO],
+        *,
+        uow: PgFullOutboxUOWContext | PgFullOutboxTxUOWContext,
     ):
         for rec in record:
             await uow.outbox.mark_fanned_out(rec.id)

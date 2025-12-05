@@ -14,7 +14,12 @@ from app.schemas.outbox import BotDeliveryTaskDTO, CreateBotDeliveryTask
 
 class PgBotDeliveryTaskRepository(PostgresRepository):
     async def store(self, tasks: list[CreateBotDeliveryTask]) -> None:
-        """ """
+        """
+        Persist a **batch** of task inside the **current transaction.
+
+        If a task with the same (outbox_id, subscription_id) already exists,
+        it will not be inserted again.
+        """
         with start_span(op="db", name="store_delivery_tasks") as span:
             span.set_tag("tasks_count", len(tasks))
 
@@ -31,6 +36,41 @@ class PgBotDeliveryTaskRepository(PostgresRepository):
                 )
                 await self._session.execute(stmt)
 
+    async def mark_published(self, task_id: UUID) -> None:
+        with start_span(op="db", name="mark_bot_delivery_task_published") as span:
+            span.set_tag("task.id", str(task_id))
+
+            stmt = (
+                update(BotDeliveryTask)
+                .where(BotDeliveryTask.id == task_id)
+                .values(
+                    published=True,
+                    attempts=BotDeliveryTask.attempts + 1,
+                    published_at=now_utc(),
+                )
+            )
+            await self._session.execute(stmt)
+
+    async def mark_failed(self, next_attempt_at: datetime, *, task_id: UUID) -> None:
+        """
+        Marks the specified task as failed.
+        Increments the `attempts` counter for the task identified by `task_id`.
+        """
+        with start_span(op="db", name="mark_bot_delivery_task_failed") as span:
+            span.set_tag("task.id", str(task_id))
+
+            stmt = (
+                update(BotDeliveryTask)
+                .where(BotDeliveryTask.id == task_id)
+                .values(
+                    attempts=BotDeliveryTask.attempts + 1,
+                    next_attempt_at=next_attempt_at,
+                )
+            )
+            await self._session.execute(stmt)
+
+
+class PgBotDeliveryTaskTxRepository(PgBotDeliveryTaskRepository):
     async def claim_batch(
         self, batch: int, *, max_attempts: int
     ) -> list[BotDeliveryTaskDTO]:
@@ -67,36 +107,3 @@ class PgBotDeliveryTaskRepository(PostgresRepository):
             span.set_tag("claimed_count", len(result))
 
             return result
-
-    async def mark_published(self, task_id: UUID) -> None:
-        with start_span(op="db", name="mark_bot_delivery_task_published") as span:
-            span.set_tag("task.id", str(task_id))
-
-            stmt = (
-                update(BotDeliveryTask)
-                .where(BotDeliveryTask.id == task_id)
-                .values(
-                    published=True,
-                    attempts=BotDeliveryTask.attempts + 1,
-                    published_at=now_utc(),
-                )
-            )
-            await self._session.execute(stmt)
-
-    async def mark_failed(self, next_attempt_at: datetime, *, task_id: UUID) -> None:
-        """
-        Marks the specified task as failed.
-        Increments the `attempts` counter for the task identified by `task_id`.
-        """
-        with start_span(op="db", name="mark_bot_delivery_task_failed") as span:
-            span.set_tag("task.id", str(task_id))
-
-            stmt = (
-                update(BotDeliveryTask)
-                .where(BotDeliveryTask.id == task_id)
-                .values(
-                    attempts=BotDeliveryTask.attempts + 1,
-                    next_attempt_at=next_attempt_at,
-                )
-            )
-            await self._session.execute(stmt)

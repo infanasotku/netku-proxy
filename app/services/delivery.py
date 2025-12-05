@@ -3,7 +3,11 @@ from logging import Logger
 from uuid import UUID
 
 from app.infra.aiogram.event import AiogramEventPublisher
-from app.infra.database.uow import PgOutboxUnitOfWorkContext, PgUnitOfWork
+from app.infra.database.uows import (
+    PgFullOutboxTxUOWContext,
+    PgFullOutboxUOWContext,
+    PgUnitOfWork,
+)
 from app.infra.utils.time import now_utc
 from app.schemas.outbox import (
     PublishBotDeliveryTask,
@@ -14,7 +18,7 @@ from app.services.billing import BillingService
 class BotDeliveryTaskService:
     def __init__(
         self,
-        uow: PgUnitOfWork[PgOutboxUnitOfWorkContext],
+        uow: PgUnitOfWork[PgFullOutboxUOWContext, PgFullOutboxTxUOWContext],
         billing_service: BillingService,
         event_publisher: AiogramEventPublisher,
         *,
@@ -30,7 +34,7 @@ class BotDeliveryTaskService:
         self._logger = logger
 
     async def process_engine_delivery_tasks(self) -> int:
-        async with self._uow.begin() as uow:
+        async with self._uow.begin(with_tx=True) as uow:
             tasks = await uow.tasks.claim_batch(
                 self._batch, max_attempts=self._max_attempts
             )

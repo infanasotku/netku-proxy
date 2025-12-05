@@ -23,11 +23,16 @@ uuidpk = Annotated[
 ]
 
 
-class Base(DeclarativeBase):
+class Base(DeclarativeBase): ...
+
+
+class BaseWithPK(Base):
+    __abstract__ = True
+
     id: Mapped[uuidpk]
 
 
-class Engine(Base):
+class Engine(BaseWithPK):
     """
     Represents an engine metadata in the database.
 
@@ -65,7 +70,7 @@ class Engine(Base):
         return f"{self.id}_{self.addr}_{self.status}"
 
 
-class Outbox(Base):
+class Outbox(BaseWithPK):
     """
     Canonical transactional-outbox event.
 
@@ -136,7 +141,7 @@ class Outbox(Base):
     )
 
 
-class User(Base):
+class User(BaseWithPK):
     """Telegram end user that can subscribe to engine events."""
 
     __tablename__ = "users"
@@ -152,16 +157,20 @@ class User(Base):
         return self.description
 
 
-class EngineSubscription(Base):
+class EngineSubscription(BaseWithPK):
     """Link table that records which users want updates from which engine."""
 
     __tablename__ = "engine_subscriptions"
 
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     user: Mapped[User] = relationship(
         foreign_keys=[user_id], back_populates="subscriptions"
     )
-    engine_id: Mapped[UUID] = mapped_column(ForeignKey("engines.id"), nullable=False)
+    engine_id: Mapped[UUID] = mapped_column(
+        ForeignKey("engines.id", ondelete="CASCADE"), nullable=False
+    )
     engine: Mapped[Engine] = relationship(
         foreign_keys=[engine_id], back_populates="subscriptions"
     )
@@ -172,7 +181,7 @@ class EngineSubscription(Base):
         return f"{self.event}_{self.user_id}_{self.engine_id}"
 
 
-class BotDeliveryTask(Base):
+class BotDeliveryTask(BaseWithPK):
     """
     Fan-out unit representing a pending delivery.
 
@@ -186,7 +195,7 @@ class BotDeliveryTask(Base):
         ForeignKey("outbox.id", ondelete="CASCADE"), nullable=False
     )
     subscription_id: Mapped[UUID] = mapped_column(
-        ForeignKey("engine_subscriptions.id"), nullable=False
+        ForeignKey("engine_subscriptions.id", ondelete="CASCADE"), nullable=False
     )
 
     published: Mapped[bool] = mapped_column(nullable=False, default=False)

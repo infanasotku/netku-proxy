@@ -10,31 +10,6 @@ from app.infra.database.repositories.base import PostgresRepository
 
 
 class PgEngineRepository(PostgresRepository):
-    async def get_for_update(self, engine_id: UUID) -> Engine | None:
-        """
-        Retrieve the **current persistent snapshot** of an `Engine` aggregate
-        and **reserve it for exclusive write-access** for the remainder of the
-        caller’s transactional context.
-        """
-        with start_span(op="db", name="get_engine_for_update") as span:
-            span.set_tag("engine_id", str(engine_id))
-
-            stmt = (
-                select(EngineModel).where(EngineModel.id == engine_id).with_for_update()
-            )
-            row = await self._session.scalar(stmt)
-            if row is None:
-                return None
-
-            return Engine(
-                id=engine_id,
-                uuid=row.uuid,
-                status=row.status,
-                created=row.created,
-                addr=row.addr,
-                version=Version(ts=row.version_timestamp, seq=row.version_seq),
-            )
-
     async def save(self, engine: Engine) -> bool:
         """
         Persist the *current* state of an ``Engine`` aggregate.
@@ -117,3 +92,30 @@ class PgEngineRepository(PostgresRepository):
 
             span.set_tag("deleted_count", deleted)
             return deleted
+
+
+class PgEngineTxRepository(PgEngineRepository):
+    async def get_for_update(self, engine_id: UUID) -> Engine | None:
+        """
+        Retrieve the **current persistent snapshot** of an `Engine` aggregate
+        and **reserve it for exclusive write-access** for the remainder of the
+        caller’s transactional context.
+        """
+        with start_span(op="db", name="get_engine_for_update") as span:
+            span.set_tag("engine_id", str(engine_id))
+
+            stmt = (
+                select(EngineModel).where(EngineModel.id == engine_id).with_for_update()
+            )
+            row = await self._session.scalar(stmt)
+            if row is None:
+                return None
+
+            return Engine(
+                id=engine_id,
+                uuid=row.uuid,
+                status=row.status,
+                created=row.created,
+                addr=row.addr,
+                version=Version(ts=row.version_timestamp, seq=row.version_seq),
+            )
