@@ -9,3 +9,4 @@ stringData:
 {{- range $key, $val := $secrets }}
   {{ $key }}: {{ $val }}
 {{- end }}
+{{- end }}

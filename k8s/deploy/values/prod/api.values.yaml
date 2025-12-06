@@ -1,5 +1,6 @@
+replicaCount: 2
+
 container:
-  replicas: 2
   name: api
   port: 5100
   args:
@@ -15,9 +16,9 @@ container:
       "5100",
     ]
 
-  ingress:
-    host: proxy.infanasotku.com
-    path: /
+ingress:
+  host: proxy.infanasotku.com
+  path: /
 
 livenessProbe:
   httpGet:
