@@ -5,7 +5,7 @@ metadata:
   name: {{ include "common.fullname" . }}
 type: Opaque
 stringData:
-{{- $secrets := .Files.Get "temp-secrets.yaml" | fromYaml }}
+{{- $secrets := (.Files.Get "temp-secrets.yaml" | required "missing decrypted secrets") | fromYaml }}
 {{- range $key, $val := $secrets }}
   {{ $key }}: {{ $val }}
 {{- end }}
