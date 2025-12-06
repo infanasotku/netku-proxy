@@ -1,0 +1,28 @@
+{{- define "common.config" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.fullname" . }}
+data:
+  # Admin
+  ADMIN__USERNAME: "admin"
+
+  # Postgres
+  POSTGRES__USERNAME: infanaserver
+  POSTGRES__DB_NAME: {{ .Values.config.POSTGRES__DB_NAME }}
+  POSTGRES__HOST: local.infanasotku.com.
+  POSTGRES__PORT: "5430"
+  POSTGRES__SQL_SCHEMA: proxy
+
+  # RabbitMQ
+  RABBIT__USERNAME: {{ .Values.config.RABBIT__USERNAME }}
+  RABBIT__HOST: rabbitmq.infanasotku.com.
+  RABBIT__PORT: "5670"
+  RABBIT_SCOPE_VHOST: /client
+  RABBIT_PROXY_VHOST: {{ .Values.config.RABBIT_PROXY_VHOST }}
+
+  # Redis
+  REDIS__HOST: redis.infanasotku.com.
+  REDIS__PORT: {{ .Values.config.REDIS__PORT | quote }}
+  REDIS__DB: {{ .Values.config.REDIS__DB | quote }}
+{{- end }}
