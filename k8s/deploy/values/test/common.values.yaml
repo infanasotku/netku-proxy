@@ -1,0 +1,9 @@
+container:
+  tag: test
+
+config:
+  POSTGRES__DB_NAME: netku_debug
+  REDIS__DB: "0"
+  REDIS__PORT: "6382"
+  RABBIT_PROXY_VHOST: "/test/proxy"
+  RABBIT__USERNAME: "test"
