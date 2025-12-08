@@ -1,0 +1,6 @@
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+container:
+  image: registry.infanasotku.com:5501/netku/netku-proxy

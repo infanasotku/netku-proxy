@@ -1,4 +1,4 @@
 {{- define "common.fullname" -}}
-{{ printf "%s-%s" .Release.Name (.Values.environment | default "") | trunc 63 | trimSuffix "-" }}
+{{ .Release.Name  | trunc 63 }}
 {{- end }}
 

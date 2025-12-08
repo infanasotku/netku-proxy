@@ -1,0 +1,26 @@
+container:
+  name: api
+  port: 5100
+  args:
+    [
+      "app.entrypoints.api:app",
+      "--proxy-headers",
+      "--forwarded-allow-ips=*",
+      "--workers",
+      "1",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "5100",
+    ]
+
+ingress:
+  path: /
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 5100
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
