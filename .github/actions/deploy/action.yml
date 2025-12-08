@@ -1,4 +1,5 @@
 name: Deploy Service
+description: Deploy a microservice to the specified environment
 inputs:
   service:
     description: "Service to deploy (api, events, outbox)"
@@ -11,6 +12,7 @@ runs:
   using: "composite"
   steps:
     - name: Set up SSH
+      shell: bash
       run: |
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
@@ -18,6 +20,7 @@ runs:
         ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
     - name: Deploy via SSH
+      shell: bash
       env:
         BRANCH: ${{ (inputs.environment == 'prod') && 'main' || 'test' }}
         SECRETS_PATH: >-
@@ -55,6 +58,7 @@ runs:
         EOF
 
     - name: Uninstall test via SSH
+      shell: bash
       if: inputs.environment == 'prod'
       run: |
         ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'

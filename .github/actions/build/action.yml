@@ -1,4 +1,5 @@
 name: Build
+description: Build and push Docker image for the specified environment
 inputs:
   environment:
     description: "Deployment environment (test, prod)"
