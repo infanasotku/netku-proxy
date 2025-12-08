@@ -1,4 +1,5 @@
 container:
+  name: api
   port: 5100
   args:
     [

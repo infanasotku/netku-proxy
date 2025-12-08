@@ -1,20 +1,21 @@
 container:
-  port: 5101
+  name: outbox
+  port: 5102
   args:
     [
-      "app.entrypoints.events:app",
+      "app.entrypoints.outbox:app",
       "--workers",
       "1",
       "--host",
       "0.0.0.0",
       "--port",
-      "5101",
+      "5102",
     ]
 
 livenessProbe:
   httpGet:
     path: /healthz
-    port: 5101
+    port: 5102
   initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5

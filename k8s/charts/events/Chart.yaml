@@ -1,6 +1,6 @@
 apiVersion: v2
-name: events
-description: Events microservice chart
+name: outbox
+description: Outbox microservice chart
 version: 0.1.0
 appVersion: "1.0.0"
 
