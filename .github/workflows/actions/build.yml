@@ -1,0 +1,24 @@
+name: Build
+inputs:
+  environment:
+    description: "Deployment environment (test, prod)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Log in to registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ vars.REGISTRY_URL }}
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+
+    - name: Build and push image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: Dockerfile
+        push: true
+        tags: |
+          ${{ vars.REGISTRY_URL }}/netku/netku-proxy:${{ inputs.environment }}-${{ github.run_number }}

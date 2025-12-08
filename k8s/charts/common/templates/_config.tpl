@@ -1,7 +1,8 @@
+{{- define "common.config" -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.name }}-config
+  name: {{ include "common.fullname" . }}
 data:
   # Admin
   ADMIN__USERNAME: "admin"
@@ -24,3 +25,4 @@ data:
   REDIS__HOST: redis.infanasotku.com.
   REDIS__PORT: {{ .Values.config.REDIS__PORT | quote }}
   REDIS__DB: {{ .Values.config.REDIS__DB | quote }}
+{{- end }}

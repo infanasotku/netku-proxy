@@ -1,0 +1,29 @@
+container:
+  name: events
+  port: 5101
+  args:
+    [
+      "app.entrypoints.events:app",
+      "--workers",
+      "1",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "5101",
+    ]
+
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: 5101
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 5101
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5

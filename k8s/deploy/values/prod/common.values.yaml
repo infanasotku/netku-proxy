@@ -1,4 +1,3 @@
-environment: prod
 container:
   tag: latest
 
@@ -8,8 +7,3 @@ config:
   REDIS__PORT: "6381"
   RABBIT_PROXY_VHOST: "/proxy"
   RABBIT__USERNAME: "proxy"
-
-# --- API ---
-api:
-  ingress:
-    host: proxy.infanasotku.com

@@ -1,0 +1,63 @@
+name: Deploy Service
+inputs:
+  service:
+    description: "Service to deploy (api, events, outbox)"
+    required: true
+  environment:
+    description: "Deployment environment (test, prod)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+    - name: Deploy via SSH
+      env:
+        BRANCH: ${{ (inputs.environment == 'prod') && 'main' || 'test' }}
+        SECRETS_PATH: >-
+          ${{ (inputs.environment == 'prod')
+              && ('charts/' + inputs.service + '/temp-secrets.yaml')
+              || ('charts/' + inputs.service + '/temp-secrets.yaml')
+          }}
+
+      run: |
+        ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
+          cd ${{ secrets.PROJECT_DIR }}
+          git fetch
+          git checkout $BRANCH
+          git pull
+
+          set -e
+          sops -d deploy/secrets/${{ inputs.environment }}/common.secrets.yaml > $SECRETS_PATH
+
+          helm upgrade --install \
+           netku-proxy-${{ inputs.service }} \
+           ./charts/${{ inputs.service }} \
+           -f deploy/values/common/${{ inputs.service }}.values.yaml \
+           -f deploy/values/common/common.values.yaml \
+           -f deploy/values/${{ inputs.environment }}/common.values.yaml \
+           -f deploy/values/${{ inputs.environment }}/${{ inputs.service }}.values.yaml \
+           --set container.tag=${{ inputs.environment }}-${{ github.run_number }} \
+           --dependency-update \
+           --namespace netku-${{ inputs.environment }}
+          
+          set +e
+           
+          rm -f $SECRETS_PATH
+          rm -f ./charts/${{ inputs.service }}/Chart.lock
+          rm -rf ./charts/${{ inputs.service }}/charts
+        EOF
+
+    - name: Uninstall test via SSH
+      if: inputs.environment == 'prod'
+      run: |
+        ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
+          cd ${{ secrets.PROJECT_DIR }}
+          helm uninstall --ignore-not-found netku-proxy-test --namespace netku-test
+        EOF
