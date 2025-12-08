@@ -1,25 +1,20 @@
 container:
-  port: 5100
+  port: 5101
   args:
     [
-      "app.entrypoints.api:app",
-      "--proxy-headers",
-      "--forwarded-allow-ips=*",
+      "app.entrypoints.events:app",
       "--workers",
       "1",
       "--host",
       "0.0.0.0",
       "--port",
-      "5100",
+      "5101",
     ]
-
-ingress:
-  path: /
 
 livenessProbe:
   httpGet:
     path: /healthz
-    port: 5100
+    port: 5101
   initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5
