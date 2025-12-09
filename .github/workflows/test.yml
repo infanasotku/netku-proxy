@@ -21,6 +21,9 @@ jobs:
         uses: ./.github/actions/build
         with:
           environment: test
+          registry_url: ${{ vars.REGISTRY_URL }}
+          registry_username: ${{ secrets.REGISTRY_USERNAME }}
+          registry_password: ${{ secrets.REGISTRY_PASSWORD }}
 
   api:
     name: Deploy api
@@ -36,3 +39,7 @@ jobs:
         with:
           service: api
           environment: test
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh_port: ${{ secrets.SSH_PORT }}
+          server_ip: ${{ secrets.SERVER_IP }}
+          project_dir: ${{ secrets.PROJECT_DIR }}
