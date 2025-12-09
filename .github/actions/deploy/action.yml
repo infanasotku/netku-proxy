@@ -58,6 +58,7 @@ runs:
           sops -d deploy/secrets/${{ inputs.environment }}/common.secrets.yaml > $SECRETS_PATH
           set +e
 
+          helm dependency update ./charts/${{ inputs.service }}
           helm upgrade --install \
            netku-proxy-${{ inputs.service }} \
            ./charts/${{ inputs.service }} \
@@ -66,7 +67,6 @@ runs:
            -f deploy/values/${{ inputs.environment }}/common.values.yaml \
            -f deploy/values/${{ inputs.environment }}/${{ inputs.service }}.values.yaml \
            --set container.tag=${{ inputs.environment }}-${{ github.run_number }} \
-           --dependency-update \
            --namespace netku-${{ inputs.environment }}
           #
           
