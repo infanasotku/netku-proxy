@@ -35,11 +35,7 @@ runs:
       shell: bash
       env:
         BRANCH: ${{ (inputs.environment == 'prod') && 'main' || 'test' }}
-        SECRETS_PATH: >-
-          ${{ (inputs.environment == 'prod')
-              && ('charts/' + inputs.service + '/temp-secrets.yaml')
-              || ('charts/' + inputs.service + '/temp-secrets.yaml')
-          }}
+        SECRETS_PATH: ${{ format('charts/{0}/temp-secrets.yaml', inputs.service) }}
 
       run: |
         ssh -p ${{ inputs.ssh_port }} root@${{ inputs.server_ip }} << EOF
