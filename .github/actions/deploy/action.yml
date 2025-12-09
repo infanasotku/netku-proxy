@@ -7,6 +7,18 @@ inputs:
   environment:
     description: "Deployment environment (test, prod)"
     required: true
+  ssh_private_key:
+    description: "SSH private key"
+    required: true
+  ssh_port:
+    description: "SSH port"
+    required: true
+  server_ip:
+    description: "SSH server IP/host"
+    required: true
+  project_dir:
+    description: "Path to project directory on server"
+    required: true
 
 runs:
   using: "composite"
@@ -15,9 +27,9 @@ runs:
       shell: bash
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        echo "${{ inputs.ssh_private_key }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+        ssh-keyscan -p ${{ inputs.ssh_port }} ${{ inputs.server_ip }} >> ~/.ssh/known_hosts
 
     - name: Deploy via SSH
       shell: bash
@@ -30,8 +42,8 @@ runs:
           }}
 
       run: |
-        ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
-          cd ${{ secrets.PROJECT_DIR }}
+        ssh -p ${{ inputs.ssh_port }} root@${{ inputs.server_ip }} << EOF
+          cd ${{ inputs.project_dir }}
           git fetch
           git checkout $BRANCH
           git pull
@@ -61,7 +73,7 @@ runs:
       shell: bash
       if: inputs.environment == 'prod'
       run: |
-        ssh -p ${{ secrets.SSH_PORT }} root@${{ secrets.SERVER_IP }} << 'EOF'
-          cd ${{ secrets.PROJECT_DIR }}
+        ssh -p ${{ inputs.ssh_port }} root@${{ inputs.server_ip }} << EOF
+          cd ${{ inputs.project_dir }}
           helm uninstall --ignore-not-found netku-proxy-test --namespace netku-test
         EOF
