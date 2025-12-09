@@ -52,7 +52,7 @@ jobs:
     name: Deploy api
     runs-on: ubuntu-latest
     needs: [prepare]
-    environment: deploy
+    environment: api
 
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
     name: Deploy events
     runs-on: ubuntu-latest
     needs: [prepare]
-    environment: deploy
+    environment: events
 
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +90,7 @@ jobs:
     name: Deploy outbox
     runs-on: ubuntu-latest
     needs: [prepare]
-    environment: deploy
+    environment: outbox
 
     steps:
       - uses: actions/checkout@v4
