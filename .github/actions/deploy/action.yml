@@ -44,6 +44,8 @@ runs:
           git checkout $BRANCH
           git pull
 
+          kubectx kubernetes-admin@kubernetes
+          kubens netku-${{ inputs.environment }}
           cd k8s
           set -e
           sops -d deploy/secrets/${{ inputs.environment }}/common.secrets.yaml > $SECRETS_PATH
