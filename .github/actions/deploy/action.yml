@@ -47,8 +47,16 @@ runs:
           kubectx kubernetes-admin@kubernetes
           kubens netku-${{ inputs.environment }}
           cd k8s
+
+          # Clear old secrets and chart dependencies
+          rm -f $SECRETS_PATH
+          rm -f ./charts/${{ inputs.service }}/Chart.lock
+          rm -rf ./charts/${{ inputs.service }}/charts
+
+          # 
           set -e
           sops -d deploy/secrets/${{ inputs.environment }}/common.secrets.yaml > $SECRETS_PATH
+          set +e
 
           helm upgrade --install \
            netku-proxy-${{ inputs.service }} \
@@ -60,9 +68,8 @@ runs:
            --set container.tag=${{ inputs.environment }}-${{ github.run_number }} \
            --dependency-update \
            --namespace netku-${{ inputs.environment }}
+          #
           
-          set +e
-           
           rm -f $SECRETS_PATH
           rm -f ./charts/${{ inputs.service }}/Chart.lock
           rm -rf ./charts/${{ inputs.service }}/charts
