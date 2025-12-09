@@ -35,7 +35,7 @@ runs:
       shell: bash
       env:
         BRANCH: ${{ (inputs.environment == 'prod') && 'main' || 'test' }}
-        SECRETS_PATH: ${{ format('charts/{0}/temp-secrets.yaml', inputs.service) }}
+        SECRETS_PATH: ${{ format('./charts/{0}/temp-secrets.yaml', inputs.service) }}
 
       run: |
         ssh -p ${{ inputs.ssh_port }} root@${{ inputs.server_ip }} << EOF
@@ -44,6 +44,7 @@ runs:
           git checkout $BRANCH
           git pull
 
+          cd k8s
           set -e
           sops -d deploy/secrets/${{ inputs.environment }}/common.secrets.yaml > $SECRETS_PATH
 
