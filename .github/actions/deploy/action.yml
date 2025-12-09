@@ -55,7 +55,7 @@ runs:
           sops -d deploy/secrets/${{ inputs.environment }}/common.secrets.yaml > $SECRETS_PATH
           set +e
 
-          helm dependency update ./charts/${{ inputs.service }}
+          helm dependency update ./charts/${{ inputs.service }} --skip-refresh
           helm upgrade --install \
            netku-proxy-${{ inputs.service }} \
            ./charts/${{ inputs.service }} \
