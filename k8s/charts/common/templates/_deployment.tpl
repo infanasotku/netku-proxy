@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   name: {{ include "common.fullname" . }}
   labels:
-    infanasotku.com: "Infanasotku software engineier"
+    infanasotku.com: "Infanasotku_software_engineier"
 
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
