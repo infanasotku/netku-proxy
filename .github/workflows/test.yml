@@ -43,3 +43,41 @@ jobs:
           ssh_port: ${{ secrets.SSH_PORT }}
           server_ip: ${{ secrets.SERVER_IP }}
           project_dir: ${{ secrets.PROJECT_DIR }}
+
+  events:
+    name: Deploy events
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment: deploy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy events to Test
+        uses: ./.github/actions/deploy
+        with:
+          service: events
+          environment: test
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh_port: ${{ secrets.SSH_PORT }}
+          server_ip: ${{ secrets.SERVER_IP }}
+          project_dir: ${{ secrets.PROJECT_DIR }}
+
+  outbox:
+    name: Deploy outbox
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment: deploy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy outbox to Test
+        uses: ./.github/actions/deploy
+        with:
+          service: outbox
+          environment: test
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh_port: ${{ secrets.SSH_PORT }}
+          server_ip: ${{ secrets.SERVER_IP }}
+          project_dir: ${{ secrets.PROJECT_DIR }}

@@ -21,8 +21,9 @@ spec:
         timestamp: {{ now | quote }}
 
     spec:
-      runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
-      runAsUser: {{ .Values.securityContext.runAsUser }}
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
 
       containers:
         - name: {{ .Values.container.name }}
