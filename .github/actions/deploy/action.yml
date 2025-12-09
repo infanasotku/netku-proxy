@@ -40,9 +40,6 @@ runs:
       run: |
         ssh -p ${{ inputs.ssh_port }} root@${{ inputs.server_ip }} << EOF
           cd ${{ inputs.project_dir }}
-          git fetch
-          git checkout $BRANCH
-          git pull
 
           kubectx kubernetes-admin@kubernetes
           kubens netku-${{ inputs.environment }}
