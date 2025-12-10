@@ -23,60 +23,24 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up SSH
-      shell: bash
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ inputs.ssh_private_key }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -p ${{ inputs.ssh_port }} ${{ inputs.server_ip }} >> ~/.ssh/known_hosts
-
-    - name: Deploy via SSH
+    - name: Deploy
       shell: bash
       env:
-        BRANCH: ${{ (inputs.environment == 'prod') && 'main' || 'test' }}
         SECRETS_PATH: ${{ format('./charts/{0}/temp-secrets.yaml', inputs.service) }}
 
       run: |
-        ssh -p ${{ inputs.ssh_port }} root@${{ inputs.server_ip }} << EOF
-          cd ${{ inputs.project_dir }}
+        cd k8s
 
-          kubectx kubernetes-admin@kubernetes
-          kubens netku-${{ inputs.environment }}
-          cd k8s
+        helmfile -f helmfile.yaml.gotmpl \
+         --state-values-set \
+         tag=${{ inputs.environment }}-${{ github.run_number }} \ 
+         -e ${{ inputs.environment }} \
+         -l svc=${{ inputs.service }} \
+         --skip-refresh \
+         apply
 
-          # Clear old secrets and chart dependencies
-          rm -f $SECRETS_PATH
-          rm -f ./charts/${{ inputs.service }}/Chart.lock
-          rm -rf ./charts/${{ inputs.service }}/charts
-
-          # 
-          set -e
-          sops -d deploy/secrets/${{ inputs.environment }}/common.secrets.yaml > $SECRETS_PATH
-          set +e
-
-          helm dependency update ./charts/${{ inputs.service }} --skip-refresh
-          helm upgrade --install \
-           netku-proxy-${{ inputs.service }} \
-           ./charts/${{ inputs.service }} \
-           -f deploy/values/common/${{ inputs.service }}.values.yaml \
-           -f deploy/values/common/common.values.yaml \
-           -f deploy/values/${{ inputs.environment }}/common.values.yaml \
-           -f deploy/values/${{ inputs.environment }}/${{ inputs.service }}.values.yaml \
-           --set container.tag=${{ inputs.environment }}-${{ github.run_number }} \
-           --namespace netku-${{ inputs.environment }}
-          #
-          
-          rm -f $SECRETS_PATH
-          rm -f ./charts/${{ inputs.service }}/Chart.lock
-          rm -rf ./charts/${{ inputs.service }}/charts
-        EOF
-
-    - name: Uninstall test via SSH
+    - name: Uninstall test
       shell: bash
       if: inputs.environment == 'prod'
       run: |
-        ssh -p ${{ inputs.ssh_port }} root@${{ inputs.server_ip }} << EOF
-          cd ${{ inputs.project_dir }}
-          helm uninstall --ignore-not-found netku-proxy-test --namespace netku-test
-        EOF
+        helm uninstall --ignore-not-found netku-proxy-test --namespace netku-test
