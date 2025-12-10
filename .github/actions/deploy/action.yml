@@ -26,18 +26,17 @@ runs:
     - name: Deploy
       shell: bash
       env:
-        SECRETS_PATH: ${{ format('./charts/{0}/temp-secrets.yaml', inputs.service) }}
+        TAG: ${{ format('{0}-{1}', inputs.environment, github.run_number) }}
 
       run: |
         cd k8s
 
         helmfile -f helmfile.yaml.gotmpl \
-         --state-values-set \
-         tag=${{ inputs.environment }}-${{ github.run_number }} \ 
-         -e ${{ inputs.environment }} \
-         -l svc=${{ inputs.service }} \
-         --skip-refresh \
-         apply
+          --state-values-set tag=$TAG \
+          -e ${{ inputs.environment }} \
+          -l svc=${{ inputs.service }} \
+          --skip-refresh \
+          apply
 
     - name: Uninstall test
       shell: bash
