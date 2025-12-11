@@ -7,18 +7,6 @@ inputs:
   environment:
     description: "Deployment environment (test, prod)"
     required: true
-  ssh_private_key:
-    description: "SSH private key"
-    required: true
-  ssh_port:
-    description: "SSH port"
-    required: true
-  server_ip:
-    description: "SSH server IP/host"
-    required: true
-  project_dir:
-    description: "Path to project directory on server"
-    required: true
 
 runs:
   using: "composite"

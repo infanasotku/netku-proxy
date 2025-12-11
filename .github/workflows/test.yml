@@ -39,10 +39,6 @@ jobs:
         with:
           service: api
           environment: test
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh_port: ${{ secrets.SSH_PORT }}
-          server_ip: ${{ secrets.SERVER_IP }}
-          project_dir: ${{ secrets.PROJECT_DIR }}
 
   events:
     name: Deploy events
@@ -58,10 +54,6 @@ jobs:
         with:
           service: events
           environment: test
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh_port: ${{ secrets.SSH_PORT }}
-          server_ip: ${{ secrets.SERVER_IP }}
-          project_dir: ${{ secrets.PROJECT_DIR }}
 
   outbox:
     name: Deploy outbox
@@ -77,7 +69,3 @@ jobs:
         with:
           service: outbox
           environment: test
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh_port: ${{ secrets.SSH_PORT }}
-          server_ip: ${{ secrets.SERVER_IP }}
-          project_dir: ${{ secrets.PROJECT_DIR }}
