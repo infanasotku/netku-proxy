@@ -1,0 +1,6 @@
+container:
+  name: migration
+  args: ["upgrade", "head"]
+
+backoffLimit: 2
+ttlSecondsAfterFinished: 300

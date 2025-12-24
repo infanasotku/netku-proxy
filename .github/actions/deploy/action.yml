@@ -30,4 +30,4 @@ runs:
       shell: bash
       if: inputs.environment == 'prod'
       run: |
-        helm uninstall --ignore-not-found netku-proxy-test --namespace netku-test
+        helm uninstall --ignore-not-found netku-proxy-test --namespace netku-proxy-test
