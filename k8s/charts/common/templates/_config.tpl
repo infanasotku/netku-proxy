@@ -8,7 +8,7 @@ data:
   ADMIN__USERNAME: "admin"
 
   # Postgres
-  POSTGRES__USERNAME: infanaserver
+  POSTGRES__USERNAME: infanasotku
   POSTGRES__DB_NAME: {{ .Values.config.POSTGRES__DB_NAME }}
   POSTGRES__HOST: local.infanasotku.com.
   POSTGRES__PORT: "5430"
