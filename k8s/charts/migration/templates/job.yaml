@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "common.fullname" . }}
+
+spec:
+  backoffLimit: {{ .Values.backoffLimit | required "backoffLimit is required" }}
+  ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished | required "ttlSecondsAfterFinished is required" }}
+
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+
+      containers:
+        - name: {{ .Values.container.name }}
+          image: {{ .Values.container.image }}:{{ .Values.container.tag }}
+          imagePullPolicy: Always
+
+          command: ["alembic"]
+          args: {{ .Values.container.args | toJson }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ include "common.fullname" . }}
+            - secretRef:
+                name: {{ include "common.fullname" . }}
+
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          securityContext:
+            capabilities:
+              drop: ["ALL"]
+
+      imagePullSecrets:
+        - name: regcred

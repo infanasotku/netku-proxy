@@ -2,12 +2,12 @@ environments:
   prod:
     values:
       - env: prod
-      - namespace: netku-prod
+      - namespace: netku-proxy-prod
       - secretsFile: deploy/secrets/prod/common.secrets.yaml
   test:
     values:
       - env: test
-      - namespace: netku-test
+      - namespace: netku-proxy-test
       - secretsFile: deploy/secrets/test/common.secrets.yaml
 
 ---
@@ -20,7 +20,38 @@ helmDefaults:
   createNamespace: true
 
 releases:
-  - name: netku-proxy-api
+  - name: migration
+    namespace: {{ .Environment.Values.namespace }}
+    labels:
+      svc: migration
+    chart: ./charts/migration
+    values:
+      - deploy/values/common/common.values.yaml
+      - deploy/values/common/migration.values.yaml
+      - deploy/values/{{ .Environment.Name }}/common.values.yaml
+      - deploy/values/{{ .Environment.Name }}/migration.values.yaml
+    set:
+      - name: container.tag
+        value: {{ printf "%v" (required "tag is required; pass --state-values-set tag=<value>" (index .Environment.Values "tag")) }}
+    hooks:
+      - events: ["prepare"]
+        command: bash
+        args:
+          - -c
+          - |
+            set -e
+            sops -d {{ .Environment.Values.secretsFile }} > charts/migration/temp-secrets.yaml
+      - events: ["cleanup"]
+        command: bash
+        args:
+          - -c
+          - |
+            set -e
+            rm -f charts/migration/temp-secrets.yaml
+            rm -f charts/migration/Chart.lock
+            rm -rf charts/migration/charts
+
+  - name: api
     namespace: {{ .Environment.Values.namespace }}
     labels:
       svc: api
@@ -51,7 +82,7 @@ releases:
             rm -f charts/api/Chart.lock
             rm -rf charts/api/charts
 
-  - name: netku-proxy-events
+  - name: events
     namespace: {{ .Environment.Values.namespace }}
     labels:
       svc: events
@@ -82,7 +113,7 @@ releases:
             rm -f charts/events/Chart.lock
             rm -rf charts/events/charts
 
-  - name: netku-proxy-outbox
+  - name: outbox
     namespace: {{ .Environment.Values.namespace }}
     labels:
       svc: outbox
