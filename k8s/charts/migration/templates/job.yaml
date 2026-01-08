@@ -9,6 +9,7 @@ spec:
 
   template:
     spec:
+      restartPolicy: OnFailure
       securityContext:
         runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
         runAsUser: {{ .Values.securityContext.runAsUser }}
