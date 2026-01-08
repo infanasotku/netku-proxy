@@ -1,5 +1,0 @@
-apiVersion: v2
-name: netku-proxy
-sources:
-  - https://github.com/infanasotku/netku-proxy
-version: 0.1.0

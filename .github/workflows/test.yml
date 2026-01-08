@@ -1,0 +1,83 @@
+name: test
+on:
+  push:
+    branches:
+      - test
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  build:
+    name: Build test
+    runs-on: ubuntu-latest
+    environment: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build test
+        uses: ./.github/actions/build
+        with:
+          environment: test
+          registry_url: ${{ vars.REGISTRY_URL }}
+          registry_username: ${{ secrets.REGISTRY_USERNAME }}
+          registry_password: ${{ secrets.REGISTRY_PASSWORD }}
+
+  migrate:
+    name: Migrate test
+    runs-on: [self-hosted, helmfile]
+    needs: [build]
+    environment: migrate
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Migrate test
+        uses: ./.github/actions/deploy
+        with:
+          service: migration
+          environment: test
+
+  api:
+    name: Deploy api test
+    runs-on: [self-hosted, helmfile]
+    needs: [build]
+    environment: api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy api Test
+        uses: ./.github/actions/deploy
+        with:
+          service: api
+          environment: test
+
+  events:
+    name: Deploy events test
+    runs-on: [self-hosted, helmfile]
+    needs: [build]
+    environment: events
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy events test
+        uses: ./.github/actions/deploy
+        with:
+          service: events
+          environment: test
+
+  outbox:
+    name: Deploy outbox test
+    runs-on: [self-hosted, helmfile]
+    needs: [build]
+    environment: outbox
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy outbox test
+        uses: ./.github/actions/deploy
+        with:
+          service: outbox
+          environment: test

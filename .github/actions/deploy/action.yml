@@ -1,0 +1,33 @@
+name: Deploy Service
+description: Deploy a microservice to the specified environment
+inputs:
+  service:
+    description: "Service to deploy (api, events, outbox)"
+    required: true
+  environment:
+    description: "Deployment environment (test, prod)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Deploy
+      shell: bash
+      env:
+        TAG: ${{ format('{0}-{1}', inputs.environment, github.run_number) }}
+
+      run: |
+        cd k8s
+
+        helmfile -f helmfile.yaml.gotmpl \
+          --state-values-set tag=$TAG \
+          -e ${{ inputs.environment }} \
+          -l svc=${{ inputs.service }} \
+          --skip-refresh \
+          apply
+
+    - name: Uninstall test
+      shell: bash
+      if: inputs.environment == 'prod'
+      run: |
+        helm uninstall --ignore-not-found netku-proxy-test --namespace netku-proxy-test
