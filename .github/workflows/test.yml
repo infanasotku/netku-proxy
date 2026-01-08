@@ -25,12 +25,34 @@ jobs:
           registry_username: ${{ secrets.REGISTRY_USERNAME }}
           registry_password: ${{ secrets.REGISTRY_PASSWORD }}
 
+  migrate:
+    name: Migrate
+    runs-on: [self-hosted, helmfile]
+    needs: [build]
+    environment: migrate
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run migrations on Test
+        uses: ./.github/actions/deploy
+        with:
+          service: migration
+          environment: test
+
   api:
     name: Deploy api
     runs-on: [self-hosted, helmfile]
-    needs: [build]
+    needs: [build, migrate]
+    if: >
+      always() &&
+      needs.build.result == 'success' &&
+      (
+        needs.migrate.result == 'success' ||
+        needs.migrate.result == 'skipped' ||
+        needs.migrate.result == 'cancelled'
+      )
     environment: api
-
     steps:
       - uses: actions/checkout@v4
 
@@ -43,9 +65,16 @@ jobs:
   events:
     name: Deploy events
     runs-on: [self-hosted, helmfile]
-    needs: [build]
+    needs: [build, migrate]
+    if: >
+      always() &&
+      needs.build.result == 'success' &&
+      (
+        needs.migrate.result == 'success' ||
+        needs.migrate.result == 'skipped' ||
+        needs.migrate.result == 'cancelled'
+      )
     environment: events
-
     steps:
       - uses: actions/checkout@v4
 
@@ -58,9 +87,16 @@ jobs:
   outbox:
     name: Deploy outbox
     runs-on: [self-hosted, helmfile]
-    needs: [build]
+    needs: [build, migrate]
+    if: >
+      always() &&
+      needs.build.result == 'success' &&
+      (
+        needs.migrate.result == 'success' ||
+        needs.migrate.result == 'skipped' ||
+        needs.migrate.result == 'cancelled'
+      )
     environment: outbox
-
     steps:
       - uses: actions/checkout@v4
 
