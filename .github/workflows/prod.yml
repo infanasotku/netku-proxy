@@ -72,7 +72,7 @@ jobs:
         uses: ./.github/actions/deploy
         with:
           service: api
-          environment: test
+          environment: prod
 
   events:
     name: Deploy events prod
