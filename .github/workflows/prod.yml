@@ -1,8 +1,8 @@
-name: test
+name: prod
 on:
   push:
     branches:
-      - test
+      - main
 
 permissions:
   contents: read
@@ -10,23 +10,43 @@ permissions:
 
 jobs:
   build:
-    name: Build test
+    name: Build prod
     runs-on: ubuntu-latest
     environment: build
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build test
+      - name: Build prod
         uses: ./.github/actions/build
         with:
-          environment: test
+          environment: prod
           registry_url: ${{ vars.REGISTRY_URL }}
           registry_username: ${{ secrets.REGISTRY_USERNAME }}
           registry_password: ${{ secrets.REGISTRY_PASSWORD }}
 
+  release:
+    name: Make sentry release
+    runs-on: ubuntu-latest
+    environment: release
+    needs: [build]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create Sentry release
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        with:
+          environment: production
+          release: "${{ github.sha}}"
+
   migrate:
-    name: Migrate test
+    name: Migrate prod
     runs-on: [self-hosted, helmfile]
     needs: [build]
     environment: migrate
@@ -34,50 +54,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Migrate test
+      - name: Migrate prod
         uses: ./.github/actions/deploy
         with:
           service: migration
-          environment: test
+          environment: prod
 
   api:
-    name: Deploy api test
+    name: Deploy api prod
     runs-on: [self-hosted, helmfile]
     needs: [build]
     environment: api
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy api Test
+      - name: Deploy api prod
         uses: ./.github/actions/deploy
         with:
           service: api
           environment: test
 
   events:
-    name: Deploy events test
+    name: Deploy events prod
     runs-on: [self-hosted, helmfile]
     needs: [build]
     environment: events
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy events test
+      - name: Deploy events prod
         uses: ./.github/actions/deploy
         with:
           service: events
-          environment: test
+          environment: prod
 
   outbox:
-    name: Deploy outbox test
+    name: Deploy outbox prod
     runs-on: [self-hosted, helmfile]
     needs: [build]
     environment: outbox
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy outbox test
+      - name: Deploy outbox prod
         uses: ./.github/actions/deploy
         with:
           service: outbox
-          environment: test
+          environment: prod
